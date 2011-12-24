@@ -32,7 +32,9 @@
 <node CREATED="1324660999641" ID="ID_1521033306" MODIFIED="1324674938236" TEXT="CRUD list items">
 <font NAME="Candara" SIZE="12"/>
 </node>
-<node CREATED="1324661022353" ID="ID_973778279" MODIFIED="1324730071717" TEXT="Log in using Facebook, Google, Twitter, BrowserID, or regular"/>
+<node CREATED="1324661022353" ID="ID_973778279" MODIFIED="1324738076826" TEXT="Log in using Facebook, Google, Twitter, BrowserID">
+<icon BUILTIN="button_ok"/>
+</node>
 <node CREATED="1324724980868" ID="ID_767090055" MODIFIED="1324724987469" TEXT="Set up database, tables, queries, tests."/>
 </node>
 <node CREATED="1324660984193" ID="ID_1396937181" MODIFIED="1324660986255" TEXT="2">

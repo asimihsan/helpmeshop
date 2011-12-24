@@ -1,4 +1,5 @@
 import tornado
+import tornado.gen
 import tornado.web
 import tornado.auth
 import tornado.httpclient
@@ -8,6 +9,8 @@ from tornado.options import define, options
 import os
 import sys
 import logging
+
+from base_request_handlers import BaseLoginHandler
 
 # ----------------------------------------------------------------------------
 #   Configuration constants.
@@ -20,7 +23,7 @@ define("facebook_app_secret", default=None, help="Facebook app secret")
 # ----------------------------------------------------------------------------
 #   RequestHandler that deals with Mozilla BrowserID authentication.
 # ----------------------------------------------------------------------------
-class LoginBrowserIDHandler(tornado.web.RequestHandler):
+class LoginBrowserIDHandler(BaseLoginHandler):
     @tornado.web.asynchronous
     def post(self):
         logger = logging.getLogger("LoginBrowserIDHandler.get")
@@ -38,16 +41,35 @@ class LoginBrowserIDHandler(tornado.web.RequestHandler):
                                      method='POST',
                                      body=urllib.urlencode(data),
                                      callback=self.async_callback(self._on_response))
-                                     
+                            
+    @tornado.gen.engine
     def _on_response(self, response):
         logger = logging.getLogger("LoginBrowserIDHandler._on_response")
         logger.debug("entry. response: %s" % (response, ))     
         struct = tornado.escape.json_decode(response.body)
         logger.debug("response struct: %s" % (struct, ))
         if struct['status'] != 'okay':
-            raise tornado.web.HTTPError(400, "BrowserID status not okay")
+            raise tornado.web.HTTPError(400, "BrowserID status not okay")            
+        
+        # Does a user already exist for these BrowserID credentials?
+        # BrowserID credentials are uniquely identified by the email
+        # address.
         email = struct['email']
-        self.set_secure_cookie('user', email)
+        user_id = yield tornado.gen.Task(self.db.get_user_id_from_browserid_email,
+                                 email)
+        logger.debug("user_id: %s" % (user_id, ))
+        if not user_id:
+            # User does not exist.
+            logger.debug("User does not exist.")
+            user_id = yield tornado.gen.Task(self.db.create_user, "regular")
+            logger.debug("user_id: %s" % (user_id, ))
+            rc = yield tornado.gen.Task(self.db.create_auth_browserid,
+                                        email,
+                                        user_id)
+            logger.debug("create_auth_browserid rc: %s" % (rc, ))
+            assert(rc == True)
+            
+        self.set_secure_cookie('user', user_id)        
         self.set_header("Content-Type", "application/json; charset=UTF-8")
         response = {'next_url': '/'}
         self.write(tornado.escape.json_encode(response))
@@ -56,7 +78,7 @@ class LoginBrowserIDHandler(tornado.web.RequestHandler):
 # ----------------------------------------------------------------------------
 #   RequestHandler that deals with Twitter authentication.
 # ----------------------------------------------------------------------------
-class LoginTwitterHandler(tornado.web.RequestHandler, tornado.auth.TwitterMixin):
+class LoginTwitterHandler(BaseLoginHandler, tornado.auth.TwitterMixin):
     @tornado.web.asynchronous
     def get(self):
         logger = logging.getLogger("LoginTwitterHandler.get")
@@ -100,7 +122,7 @@ class LoginTwitterHandler(tornado.web.RequestHandler, tornado.auth.TwitterMixin)
 #   Note that, unlike Twitter or Google, Facebook does not have an explicit
 #   "do not accept" choice for the user.
 # ----------------------------------------------------------------------------
-class LoginFacebookHandler(tornado.web.RequestHandler, tornado.auth.FacebookGraphMixin):
+class LoginFacebookHandler(BaseLoginHandler, tornado.auth.FacebookGraphMixin):
     @tornado.web.asynchronous
     def get(self):
         logger = logging.getLogger("LoginFacebookHandler.get")
@@ -136,7 +158,7 @@ class LoginFacebookHandler(tornado.web.RequestHandler, tornado.auth.FacebookGrap
 #   old-style OAuth1 that works but is depreciated in favour of the graph
 #   mixin.
 # ----------------------------------------------------------------------------
-#class LoginFacebookHandler(tornado.web.RequestHandler, tornado.auth.FacebookMixin):
+#class LoginFacebookHandler(BaseLoginHandler, tornado.auth.FacebookMixin):
 #    @tornado.web.asynchronous
 #    def get(self):
 #        logger = logging.getLogger("LoginFacebookHandler.get")
@@ -162,7 +184,7 @@ class LoginFacebookHandler(tornado.web.RequestHandler, tornado.auth.FacebookGrap
 # ----------------------------------------------------------------------------
 #   RequestHandler that deals with Google authentication.
 # ----------------------------------------------------------------------------
-class LoginGoogleHandler(tornado.web.RequestHandler, tornado.auth.GoogleMixin):
+class LoginGoogleHandler(BaseLoginHandler, tornado.auth.GoogleMixin):
     @tornado.web.asynchronous
     def get(self):
         logger = logging.getLogger("LoginGoogleHandler.get")
