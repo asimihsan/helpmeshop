@@ -5,7 +5,7 @@
 - If you return a dict from a request handler the MIME type is automatically set as "application/json".
 - To authenticate users, override get_current_user in request handler. Then self.current_user tells you who the user is. Or, you can use the @tornado.web.authenticated decorator, which redirects to "login_url", which is an application setting, if the user is not authenticated.
 - Set "xsrf_cookie" to True as an application setting. It sets a _xsrf cookie for all users and rejects all POST, PUT, DELETE without it. Then use "xsrf_form_html()" in all your forms. Same for AJAX POST requests. You can also pass this in the HTTP header.
-- You can server static files. This is an application setting. You can fake static files in different places using a StaticFileHandler.
+- You can serve static files. This is an application setting. You can fake static files in different places using a StaticFileHandler.
 - Use "static_url("img/test.png")" calls in your template to get tornado to put v=hash on the end of your filenames, to get the browser to cache content.
 - Use the @tornado.web.asynchronous decorator to keep a request open after a RequestHandler finishes get() post(). You must call self.finish() at some point.
 - tornado can authenticate on Twitter, Google, and Facebook for you! tornado.auth.
