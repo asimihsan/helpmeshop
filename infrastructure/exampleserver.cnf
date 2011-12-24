@@ -1,0 +1,15 @@
+#
+# exampleserver.cnf
+#
+
+[ req ]
+prompt                  = no
+distinguished_name      = server_distinguished_name
+
+[ server_distinguished_name ]
+commonName              = articheck.com
+stateOrProvinceName     = N/A
+countryName             = UK
+emailAddress            = admin@articheck.com
+organizationName        = Articheck
+organizationalUnitName  = N/A
