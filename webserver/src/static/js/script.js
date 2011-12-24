@@ -2,6 +2,12 @@
 
 */
 
+function getCookie(name)
+{
+    var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+    return r ? r[1] : undefined;
+}
+
 function loggedIn(response)
 { 
     location.href = response.next_url; 
@@ -19,7 +25,8 @@ function gotVerifiedEmail(assertion)
         { 
             type: 'POST', 
             url: '/login/browserid/', 
-            data: { assertion: assertion }, 
+            data: $.param({assertion: assertion,
+                           _xsrf: getCookie("_xsrf")}), 
             success: function(res, status, xhr)
             { 
                 if (res === null) {}//loggedOut(); 

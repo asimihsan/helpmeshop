@@ -43,6 +43,7 @@ class LoginBrowserIDHandler(tornado.web.RequestHandler):
         logger = logging.getLogger("LoginBrowserIDHandler._on_response")
         logger.debug("entry. response: %s" % (response, ))     
         struct = tornado.escape.json_decode(response.body)
+        logger.debug("response struct: %s" % (struct, ))
         if struct['status'] != 'okay':
             raise tornado.web.HTTPError(400, "BrowserID status not okay")
         email = struct['email']

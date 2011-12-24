@@ -178,11 +178,11 @@ def init_postgresql():
     sudo("service postgresql start", user="postgres")    
     
     sudo("createuser -s ubuntu", user="postgres")
-    sudo("createdb database", user="postgres")    
-    run("psql -d database -f /usr/share/postgresql/9.0/contrib/adminpack.sql")
-    run("psql -d database -f /usr/share/postgresql/9.0/contrib/hstore.sql")
-    run("psql -d database -f /usr/share/postgresql/9.0/contrib/pgcrypto.sql")
-    run("psql -d database -f /usr/share/postgresql/9.0/contrib/uuid-ossp.sql")
+    sudo("createdb helpmeshop", user="postgres")    
+    run("psql -d helpmeshop -f /usr/share/postgresql/9.0/contrib/adminpack.sql")
+    run("psql -d helpmeshop -f /usr/share/postgresql/9.0/contrib/hstore.sql")
+    run("psql -d helpmeshop -f /usr/share/postgresql/9.0/contrib/pgcrypto.sql")
+    run("psql -d helpmeshop -f /usr/share/postgresql/9.0/contrib/uuid-ossp.sql")
     run("psql -d template1 -c \"ALTER USER postgres WITH PASSWORD 'password';\"")    
     run("psql -d template1 -c \"ALTER USER ubuntu WITH PASSWORD 'password';\"")    
     
