@@ -116,6 +116,29 @@ def install_erlang():
     with cd("~"):
         run("rm -rf otp_src_*")
         
+def install_memcached():
+    logger = logging.getLogger("%s.install_memcached" % (APP_NAME, ))
+    logger.debug("entry.")
+    with cd("~"):
+        run("rm -rf libevent-2.0.16*")
+        run("rm -rf memcached-1.4.10*")
+        run("wget https://github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz")
+        run("tar xvf libevent-2.0.16-stable.tar.gz")
+        run("wget http://memcached.googlecode.com/files/memcached-1.4.10.tar.gz")
+        run("tar xvf memcached-1.4.10.tar.gz")
+    with cd(r"~/libevent-2.0.16-stable"):
+        run("./configure")
+        run("make")
+        sudo("make install")
+        sudo("ldconfig")
+    with cd("~/memcached-1.4.10"):
+        run("./configure")
+        run("make")
+        sudo("make install")
+    with cd("~"):
+        run("rm -rf libevent-2.0.16*")
+        run("rm -rf memcached-1.4.10*")
+        
 def install_redis():
     logger = logging.getLogger("%s.install_erlang" % (APP_NAME, ))
     logger.debug("entry.")
@@ -123,7 +146,7 @@ def install_redis():
         run("rm -rf redis-2.4.5*")
         run("wget http://redis.googlecode.com/files/redis-2.4.5.tar.gz")
         run("tar xvf redis-2.4.5.tar.gz")
-    with cd("~/redis-2.4.5")
+    with cd("~/redis-2.4.5"):
         run("make")
         sudo("make install")
     with cd("~"):
@@ -210,6 +233,12 @@ def install_haproxy():
         sudo("make install")
     with cd("~"):
         run("rm -rf haproxy*")
+        
+def install_ack():
+    logger = logging.getLogger("%s.install_ack" % (APP_NAME, ))
+    logger.debug("entry.")    
+    sudo("curl -L http://cpanmin.us | perl - --sudo App::cpanminus")
+    sudo("cpanm App::Ack")
     
 def harden():
     logger = logging.getLogger("%s.harden" % (APP_NAME, ))
@@ -324,10 +353,12 @@ def main():
                          #install_bare_essentials,
                          #install_erlang,
                          #install_redis,
+                         install_memcached,
                          #install_haproxy,
+                         #install_ack,
                          #setup_python,
                          #setup_ntp,
-                         harden,
+                         #harden,
                          #install_postgresql,
                          #init_postgresql,
                          #setup_postgresql,

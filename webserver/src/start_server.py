@@ -16,7 +16,10 @@ import json
 import base64
 import uuid
 
-from auth_request_handlers import LoginGoogleHandler, LoginFacebookHandler
+from auth_request_handlers import LoginGoogleHandler
+from auth_request_handlers import LoginFacebookHandler
+from auth_request_handlers import LoginTwitterHandler
+from auth_request_handlers import LoginBrowserIDHandler
 
 # ----------------------------------------------------------------------
 #   Constants.
@@ -29,6 +32,8 @@ LOG_PATH = '/var/log/helpmeshop/webserver/'
 #   Configuration variables that we require.
 # ----------------------------------------------------------------------
 define("http_listen_port", default=None, type=int, help="HTTP listen port")
+define("number_of_processes", default=None, type=int, help="Number of processes")
+define("debug_mode", default=None, help="Tornado debug mode enabled or not")
 
 # If you want to use the old-style OAuth1 Facebook authentication API then
 # uncomment these lines, as Tornado requires forward-declaration of
@@ -36,6 +41,9 @@ define("http_listen_port", default=None, type=int, help="HTTP listen port")
 # Application constructor.
 #define("facebook_app_id", default=None, help="Facebook app ID")
 #define("facebook_app_secret", default=None, help="Facebook app secret")
+
+define("twitter_consumer_key", default=None, help="Twitter app consumer key")
+define("twitter_consumer_secret", default=None, help="Twitter app consumer secret")
 # ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
@@ -70,11 +78,17 @@ class BaseHandler(tornado.web.RequestHandler):
 
 class MainHandler(BaseHandler):
     def get(self):
-        if not self.current_user:
-            self.redirect("/login/facebook/")
-            return
-        name = tornado.escape.xhtml_escape(self.current_user)
-        self.write("Hello, " + name)
+        #if not self.current_user:
+        #    self.redirect("/login/browserid/")
+        #    return
+        #name = tornado.escape.xhtml_escape(self.current_user)
+        #self.write("Hello, " + name)
+        
+        user = None
+        if self.current_user:
+            user = tornado.escape.xhtml_escape(self.current_user)
+            
+        self.render("index.html", user=user)            
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -82,6 +96,8 @@ class Application(tornado.web.Application):
             (r"/", MainHandler),
             (r"/login/google/", LoginGoogleHandler),
             (r"/login/facebook/", LoginFacebookHandler),
+            (r"/login/twitter/", LoginTwitterHandler),
+            (r"/login/browserid/", LoginBrowserIDHandler),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
@@ -90,8 +106,8 @@ class Application(tornado.web.Application):
             
             # If you generate the cookie from scratch then server restarts will
             # render old cookies invalid. This affects fault-tolerance!
-            cookie_secret='ANrq+RCiRu2VQQIdXOw2rQVT/BvavUI2nEA9TrfjesQ=',
-            #cookie_secret=base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes),
+            #cookie_secret='ANrq+RCiRu2VQQIdXOw2rQVT/BvavUI2nEA9TrfjesQ=',
+            cookie_secret=base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes),
             
             # These two lines are required for the old-style OAuth1 Facebook 
             # authentication API. So just leave them here, might come in handy
@@ -99,7 +115,12 @@ class Application(tornado.web.Application):
             # configuration variables at the top as well.
             #facebook_api_key=options.facebook_app_id,
             #facebook_secret=options.facebook_app_secret,
+            
+            twitter_consumer_key=options.twitter_consumer_key,
+            twitter_consumer_secret=options.twitter_consumer_secret,
         )
+        if options.debug_mode:
+            settings['debug'] = True
         tornado.web.Application.__init__(self, handlers, **settings)
 
 if __name__ == "__main__":
@@ -119,6 +140,13 @@ if __name__ == "__main__":
     logger.debug("start listening on port %s" % (options.http_listen_port, ))
     http_server = tornado.httpserver.HTTPServer(Application())
     http_server.bind(options.http_listen_port)
-    http_server.start(0)    
+    
+    # Debug mode only supports one process in multi-processing mode.
+    if options.debug_mode:
+        number_of_processes = 1
+    else:
+        number_of_processes = options.number_of_processes
+        
+    http_server.start(number_of_processes)    
     tornado.ioloop.IOLoop.instance().start()
     
