@@ -11,7 +11,20 @@ import sys
 import logging
 import pprint
 
+from base_request_handlers import BasePageHandler
 from base_request_handlers import BaseLoginHandler
+
+# --------------------------------------------------------------------
+# NOTES
+#
+# We use a secure cookie to prove the user has authenticated with
+# our server, and user session data to prove the user should
+# still be logged in and what session data they need. 
+#
+# The secure cookie is an HMAC composed of the user_id, a timestamp,
+# and a secret that only the server knows. Hence it is unforgeable
+# and must have come from us.
+# --------------------------------------------------------------------       
 
 # ----------------------------------------------------------------------------
 #   Configuration constants.
@@ -20,6 +33,17 @@ define("base_uri", default=None, help="Base URI where the site is hosted.")
 define("facebook_app_id", default=None, help="Facebook app ID")
 define("facebook_app_secret", default=None, help="Facebook app secret")
 # ----------------------------------------------------------------------------
+
+class LogoutHandler(BasePageHandler):
+    """ Just delete the user session data for the current user, this will
+    log them out. If noone is logged in then ignore. """
+    def get(self):
+        logger = logging.getLogger("LogoutHandler.get")
+        logger.debug("entry.")        
+        if self.current_user:
+            logger.debug("User currently logged in: %s" % (self.current_user, ))
+            self.user_session.deauthorize_user(self.current_user)
+        self.redirect("/")
 
 # ----------------------------------------------------------------------------
 #   RequestHandler that deals with Mozilla BrowserID authentication.
@@ -69,8 +93,9 @@ class LoginBrowserIDHandler(BaseLoginHandler):
                                         user_id)
             logger.debug("create_auth_browserid rc: %s" % (rc, ))
             assert(rc == True)
-            
-        self.set_secure_cookie('user', user_id)        
+        
+        self.set_secure_cookie_and_authorization(user_id, "browserid")        
+        
         self.set_header("Content-Type", "application/json; charset=UTF-8")
         response = {'next_url': '/'}
         self.write(tornado.escape.json_encode(response))
@@ -125,7 +150,7 @@ class LoginTwitterHandler(BaseLoginHandler, tornado.auth.TwitterMixin):
                                         user["profile_image_url"])
             logger.debug("create_auth_twitter rc: %s" % (rc, ))
             assert(rc == True)        
-        self.set_secure_cookie("user", user_id)
+        self.set_secure_cookie_and_authorization(user_id, "twitter")
         self.redirect("/")
 # ----------------------------------------------------------------------------
 
@@ -201,9 +226,8 @@ class LoginFacebookHandler(BaseLoginHandler, tornado.auth.FacebookGraphMixin):
                                         user["name"],
                                         user["picture"])                                       
             logger.debug("create_auth_facebook rc: %s" % (rc, ))
-            assert(rc == True)                
-        
-        self.set_secure_cookie("user", user_id)
+            assert(rc == True)                        
+        self.set_secure_cookie_and_authorization(user_id, "facebook")
         self.redirect("/") 
 
 # ----------------------------------------------------------------------------
@@ -289,8 +313,7 @@ class LoginGoogleHandler(BaseLoginHandler, tornado.auth.GoogleMixin):
                                         user["name"],
                                         user["locale"])
             logger.debug("create_auth_twitter rc: %s" % (rc, ))
-            assert(rc == True)
-        
-        self.set_secure_cookie("user", user["email"])
+            assert(rc == True)        
+        self.set_secure_cookie_and_authorization(user_id, "google")
         self.redirect("/")
 # ----------------------------------------------------------------------------

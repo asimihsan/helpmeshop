@@ -16,10 +16,13 @@ import json
 import base64
 import uuid
 
+from base_request_handlers import BasePageHandler
+
 from auth_request_handlers import LoginGoogleHandler
 from auth_request_handlers import LoginFacebookHandler
 from auth_request_handlers import LoginTwitterHandler
 from auth_request_handlers import LoginBrowserIDHandler
+from auth_request_handlers import LogoutHandler
 
 # ----------------------------------------------------------------------
 #   Constants.
@@ -72,17 +75,14 @@ logger.addHandler(ch2)
 logger = logging.getLogger(APP_NAME)
 # ----------------------------------------------------------------------
 
-class BaseHandler(tornado.web.RequestHandler):
-    def get_current_user(self):
-        return self.get_secure_cookie("user")
-
-class MainHandler(BaseHandler):
-    def get(self):        
-        user = None
+class MainHandler(BasePageHandler):
+    def get(self): 
+        data = {}
+        data['user'] = None
         if self.current_user:
-            user = tornado.escape.xhtml_escape(self.current_user)
+            data['user'] = tornado.escape.xhtml_escape(self.current_user)
             
-        self.render("index.html", user=user)            
+        self.render("index.html", **data)            
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -92,11 +92,13 @@ class Application(tornado.web.Application):
             (r"/login/facebook/", LoginFacebookHandler),
             (r"/login/twitter/", LoginTwitterHandler),
             (r"/login/browserid/", LoginBrowserIDHandler),
+            (r"/logout", LogoutHandler),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
             static_path=os.path.join(os.path.dirname(__file__), 'static'),
             xsrf_cookies=True,
+            gzip=True,
             
             # If you generate the cookie from scratch then server restarts will
             # render old cookies invalid. This affects fault-tolerance!
