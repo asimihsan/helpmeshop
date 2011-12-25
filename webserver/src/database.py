@@ -31,15 +31,25 @@ define("redis_database_id_for_database_results", default=None, type=int, help="D
         
 class DatabaseManager(object):
     # ------------------------------------------------------------------------
-    #   Database statements.
-    # ------------------------------------------------------------------------
-    GET_USER_ID_FROM_BROWSERID_EMAIL = """SELECT user_id FROM auth_browserid WHERE email = %s;"""
-    CREATE_AUTH_BROWSERID = """INSERT INTO auth_browserid (email, user_id) VALUES (%s, %s);"""    
+    #   Database statements related to user authentication and CRUD.
+    # ------------------------------------------------------------------------   
+    GET_USER_ID_FROM_GOOGLE_EMAIL = """SELECT helpmeshop_user_id FROM auth_google WHERE email = %s;"""
+    CREATE_AUTH_GOOGLE = """INSERT INTO auth_google (email, helpmeshop_user_id, first_name, last_name, name, locale) VALUES (%s, %s, %s, %s, %s, %s);"""    
+    
+    GET_USER_ID_FROM_FACEBOOK_ID = """SELECT helpmeshop_user_id FROM auth_facebook WHERE id = %s;"""
+    CREATE_AUTH_FACEBOOK = """INSERT INTO auth_facebook (id, helpmeshop_user_id, link, access_token, locale, first_name, last_name, name, picture)
+                              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"""    
+                              
+    GET_USER_ID_FROM_TWITTER_USERNAME = """SELECT helpmeshop_user_id FROM auth_twitter WHERE username = %s;"""
+    CREATE_AUTH_TWITTER = """INSERT INTO auth_twitter (username, helpmeshop_user_id, profile_image_url) VALUES (%s, %s, %s);"""    
+    
+    GET_USER_ID_FROM_BROWSERID_EMAIL = """SELECT helpmeshop_user_id FROM auth_browserid WHERE email = %s;"""
+    CREATE_AUTH_BROWSERID = """INSERT INTO auth_browserid (email, helpmeshop_user_id) VALUES (%s, %s);"""   
     
     GET_ROLE_ID = """SELECT role_id FROM role WHERE role_name = %s;"""    
-    CREATE_USER_AND_RETURN_USER_ID = """INSERT INTO helpmeshop_user (user_id, role_id)
+    CREATE_USER_AND_RETURN_USER_ID = """INSERT INTO helpmeshop_user (helpmeshop_user_id, role_id)
                                         VALUES (uuid_generate_v4(), %s)
-                                        RETURNING user_id;"""
+                                        RETURNING helpmeshop_user_id;"""
     
     # ------------------------------------------------------------------------
 
@@ -74,8 +84,10 @@ class DatabaseManager(object):
         logger = logging.getLogger("DatabaseManager.execute_cached_db_statement")
         logger.debug("entry. statement: %s, args: %s" % (statement, args))
         
-        key_elem = pickle.dumps((statement, args), -1)
-        key = hashlib.md5(key_elem).digest()
+        key_elems = [statement] + list(args)
+        key = ":".join(key_elems)
+        #key_elem = pickle.dumps((statement, args), -1)
+        #key = hashlib.md5(key_elem).digest()
         value_pickled = self.r.get(key)        
         if not value_pickled:
             logger.debug("cache miss")
@@ -100,9 +112,12 @@ class DatabaseManager(object):
         has a "fetchall" method we assume its a cursor and call this method.
         """
         logger = logging.getLogger("DatabaseManager.extract_one_value_from_one_or_zero_rows")                
-        if callable(hasattr(cursor_or_rows, "fetchall")):
+        logger.debug("entry. cursor_or_rows: %s" % (cursor_or_rows, ))
+        if hasattr(cursor_or_rows, "fetchall"):
+            logger.debug("cursor_or_rows has fetchall method")
             results = cursor_or_rows.fetchall()
         else:
+            logger.debug("cursor_or_rows does not have fetchall method")
             results = cursor_or_rows
         logger.debug("results: %s" % (results, ))
         if len(results) == 0:
@@ -143,6 +158,82 @@ class DatabaseManager(object):
         assert(new_user_id is not None)
         callback(new_user_id)
         
+    # ------------------------------------------------------------------------
+    #   Google authentication specific functions.
+    # ------------------------------------------------------------------------
+    @tornado.gen.engine
+    def create_auth_google(self, email, user_id, first_name, last_name, name, locale, callback):
+        logger = logging.getLogger("DatabaseManager.create_auth_google")
+        logger.debug("entry. email: %s, user_id: %s, first_name: %s, last_name: %s, name: %s, locale: %s" % (email, user_id, first_name, last_name, name, locale))        
+        cursor = yield tornado.gen.Task(self.db.execute,
+                                        self.CREATE_AUTH_GOOGLE,
+                                        (email, user_id, first_name, last_name, name, locale))
+        callback(True)        
+        
+    @tornado.gen.engine
+    def get_user_id_from_google_email(self, email, callback):
+        logger = logging.getLogger("DatabaseManager.get_user_id_from_google_email")
+        logger.debug("entry. email: %s" % (email, ))
+        rows = yield tornado.gen.Task(self.execute_cached_db_statement,
+                                      self.GET_USER_ID_FROM_GOOGLE_EMAIL,
+                                      (email, ))
+        yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
+        logger.debug("yielding: %s" % (yield_value, ))        
+        callback(yield_value)
+    # ------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------
+    #   Facebook authentication specific functions.
+    # ------------------------------------------------------------------------    
+    @tornado.gen.engine
+    def create_auth_facebook(self, id, user_id, link, access_token, locale, first_name, last_name, name, picture, callback):
+        logger = logging.getLogger("DatabaseManager.create_auth_facebook")
+        logger.debug("entry. id: %s, user_id: %s, link: %s, access_token: %s, locale: %s, first_name: %s, last_name: %s, name: %s, picture: %s" % \
+                     (id, user_id, link, access_token, locale, first_name, last_name, name, picture))
+        cursor = yield tornado.gen.Task(self.db.execute,
+                                        self.CREATE_AUTH_FACEBOOK,
+                                        (id, user_id, link, access_token, locale, first_name, last_name, name, picture))
+        callback(True)        
+        
+    @tornado.gen.engine
+    def get_user_id_from_facebook_id(self, id, callback):
+        logger = logging.getLogger("DatabaseManager.get_user_id_from_facebook_id")
+        logger.debug("entry. id: %s" % (id, ))
+        rows = yield tornado.gen.Task(self.execute_cached_db_statement,
+                                      self.GET_USER_ID_FROM_FACEBOOK_ID,
+                                      (id, ))
+        yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
+        logger.debug("yielding: %s" % (yield_value, ))        
+        callback(yield_value)
+    # ------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------
+    #   Twitter authentication specific functions.
+    # ------------------------------------------------------------------------
+    @tornado.gen.engine
+    def create_auth_twitter(self, username, user_id, profile_image_url, callback):
+        logger = logging.getLogger("DatabaseManager.create_auth_twitter")
+        logger.debug("entry. username: %s, user_id: %s, profile_image_url: %s" % (username, user_id, profile_image_url))        
+        cursor = yield tornado.gen.Task(self.db.execute,
+                                        self.CREATE_AUTH_TWITTER,
+                                        (username, user_id, profile_image_url))
+        callback(True)        
+        
+    @tornado.gen.engine
+    def get_user_id_from_twitter_username(self, username, callback):
+        logger = logging.getLogger("DatabaseManager.get_user_id_from_twitter_username")
+        logger.debug("entry. username: %s" % (username, ))
+        rows = yield tornado.gen.Task(self.execute_cached_db_statement,
+                                      self.GET_USER_ID_FROM_TWITTER_USERNAME,
+                                      (username, ))
+        yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
+        logger.debug("yielding: %s" % (yield_value, ))        
+        callback(yield_value)
+    # ------------------------------------------------------------------------
+
+    # ------------------------------------------------------------------------
+    #   BrowserID authentication specific functions.
+    # ------------------------------------------------------------------------    
     @tornado.gen.engine
     def create_auth_browserid(self, email, user_id, callback):
         logger = logging.getLogger("DatabaseManager.create_auth_browserid")
@@ -163,4 +254,4 @@ class DatabaseManager(object):
         yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
         logger.debug("yielding: %s" % (yield_value, ))        
         callback(yield_value)
-        
+    # ------------------------------------------------------------------------

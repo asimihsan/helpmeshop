@@ -9,6 +9,7 @@ from tornado.options import define, options
 import os
 import sys
 import logging
+import pprint
 
 from base_request_handlers import BaseLoginHandler
 
@@ -89,7 +90,7 @@ class LoginTwitterHandler(BaseLoginHandler, tornado.auth.TwitterMixin):
         denied = self.get_argument("denied", None)
         logger.debug("denied: %s" % (denied, ))
         if denied:
-            raise tornado.web.HTTPError(500, "Twitter authentication failed. User refused to authorize.")
+            raise tornado.web.HTTPError(500, "Twitter authentication failed. User refused to authorize.")                        
     
         oauth_token = self.get_argument("oauth_token", None)
         logger.debug("oauth_token: %s" % (oauth_token, ))
@@ -97,17 +98,36 @@ class LoginTwitterHandler(BaseLoginHandler, tornado.auth.TwitterMixin):
             self.get_authenticated_user(self.async_callback(self._on_auth))
             return
         self.authorize_redirect()
-        
+
+    @tornado.gen.engine
     def _on_auth(self, user):
         logger = logging.getLogger("LoginTwitterHandler._on_auth")
-        logger.debug("entry. user: %s" % (user, ))    
+        logger.debug("entry. user:\n%s" % (pprint.pformat(user), ))    
         if not user:
             raise tornado.web.HTTPError(500, "Twitter authentication failed")
         assert("username" in user)
-        self.set_secure_cookie("user", str(user["username"]))
+        
+        # Does a user already exist for these Twitter credentials?
+        # Twitter credentials are uniquely identified by the username
+        user_id = yield tornado.gen.Task(self.db.get_user_id_from_twitter_username,
+                                         user["username"])
+        logger.debug("user_id: %s" % (user_id, ))
+        if not user_id:
+            # User does not exist.
+            logger.debug("User does not exist.")
+            assert("profile_image_url" in user)
+            
+            user_id = yield tornado.gen.Task(self.db.create_user, "regular")
+            logger.debug("user_id: %s" % (user_id, ))
+            rc = yield tornado.gen.Task(self.db.create_auth_twitter,
+                                        user["username"],
+                                        user_id,
+                                        user["profile_image_url"])
+            logger.debug("create_auth_twitter rc: %s" % (rc, ))
+            assert(rc == True)        
+        self.set_secure_cookie("user", user_id)
         self.redirect("/")
 # ----------------------------------------------------------------------------
-
 
 # ----------------------------------------------------------------------------
 #   RequestHandler that deals with Facebook authentication.
@@ -143,14 +163,47 @@ class LoginFacebookHandler(BaseLoginHandler, tornado.auth.FacebookGraphMixin):
         self.authorize_redirect(redirect_uri=redirect_uri,
                                 client_id=options.facebook_app_id,
                                 extra_params={"scope": "read_stream,offline_access"})
-                                
+    
+    @tornado.gen.engine    
     def _on_login(self, user):
         logger = logging.getLogger("LoginFacebookHandler._on_login")
         logger.debug("entry. user: %s" % (user, ))
         if not user:
             raise tornado.web.HTTPError(500, "Facebook authentication failed")
-        assert("id" in user)
-        self.set_secure_cookie("user", str(user["id"]))
+        assert("id" in user)        
+        
+        # Does a user already exist for these Facebook credentials?
+        # Facebook credentials are uniquely identified by the id
+        user_id = yield tornado.gen.Task(self.db.get_user_id_from_facebook_id,
+                                         user["id"])
+        logger.debug("user_id: %s" % (user_id, ))
+        if not user_id:
+            # User does not exist.
+            logger.debug("User does not exist.")            
+            assert("link" in user)
+            assert("access_token" in user)
+            assert("locale" in user)
+            assert("first_name" in user)
+            assert("last_name" in user)
+            assert("name" in user)
+            assert("picture" in user)
+            
+            user_id = yield tornado.gen.Task(self.db.create_user, "regular")
+            logger.debug("user_id: %s" % (user_id, ))
+            rc = yield tornado.gen.Task(self.db.create_auth_facebook,
+                                        user["id"],
+                                        user_id,
+                                        user["link"],
+                                        user["access_token"],
+                                        user["locale"],
+                                        user["first_name"],
+                                        user["last_name"],
+                                        user["name"],
+                                        user["picture"])                                       
+            logger.debug("create_auth_facebook rc: %s" % (rc, ))
+            assert(rc == True)                
+        
+        self.set_secure_cookie("user", user_id)
         self.redirect("/") 
 
 # ----------------------------------------------------------------------------
@@ -193,22 +246,51 @@ class LoginGoogleHandler(BaseLoginHandler, tornado.auth.GoogleMixin):
         # If openid_mode is None we have not authenticated yet.
         # If openid_mode is cancel the user has refused to
         # authorise us.
+        # If openid_mode is id_res the user has authorised us.
         openid_mode = self.get_argument("openid.mode", None)
         logger.debug("openid_mode: %s" % (openid_mode, ))
         if openid_mode == "cancel":
             raise tornado.web.HTTPError(500, "Google authentication failed. User refused to authorize.")
         
-        if openid_mode:            
+        if openid_mode:                        
             self.get_authenticated_user(self.async_callback(self._on_auth))
             return
         self.authenticate_redirect()
-        
+    
+    @tornado.gen.engine    
     def _on_auth(self, user):
+        print "Google _on_auth called"
         logger = logging.getLogger("LoginGoogleHandler._on_auth")
         logger.debug("entry. user: %s" % (user, ))            
         if not user:
             raise tornado.web.HTTPError(500, "Google authentication failed")
         assert("email" in user)
+        
+        # Does a user already exist for these Google credentials?
+        # Google credentials are uniquely identified by the email address.
+        user_id = yield tornado.gen.Task(self.db.get_user_id_from_google_email,
+                                         user["email"])
+        logger.debug("user_id: %s" % (user_id, ))
+        if not user_id:
+            # User does not exist.
+            logger.debug("User does not exist.")
+            assert("first_name" in user)
+            assert("last_name" in user)
+            assert("name" in user)
+            assert("locale" in user)
+            
+            user_id = yield tornado.gen.Task(self.db.create_user, "regular")
+            logger.debug("user_id: %s" % (user_id, ))
+            rc = yield tornado.gen.Task(self.db.create_auth_google,
+                                        user["email"],
+                                        user_id,
+                                        user["first_name"],
+                                        user["last_name"],
+                                        user["name"],
+                                        user["locale"])
+            logger.debug("create_auth_twitter rc: %s" % (rc, ))
+            assert(rc == True)
+        
         self.set_secure_cookie("user", user["email"])
         self.redirect("/")
 # ----------------------------------------------------------------------------
