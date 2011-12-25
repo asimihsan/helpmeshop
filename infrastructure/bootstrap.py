@@ -142,15 +142,42 @@ def install_memcached():
 def install_redis():
     logger = logging.getLogger("%s.install_erlang" % (APP_NAME, ))
     logger.debug("entry.")
+    with settings(warn_only=True):
+        sudo("apt-get install libc6-dev-i386")
     with cd("~"):
         run("rm -rf redis-2.4.5*")
         run("wget http://redis.googlecode.com/files/redis-2.4.5.tar.gz")
         run("tar xvf redis-2.4.5.tar.gz")
     with cd("~/redis-2.4.5"):
-        run("make")
+        run("make 32bit")
         sudo("make install")
     with cd("~"):
         run("rm -rf redis-2.4.5*")    
+        
+def init_redis():
+    """ Reference:
+        http://library.linode.com/databases/redis/ubuntu-10.04-lucid """
+    logger = logging.getLogger("%s.init_redis" % (APP_NAME, ))
+    logger.debug("entry.")    
+    
+    sudo("adduser --system --no-create-home --disabled-login --disabled-password --group redis")
+    sudo("mkdir -p /usr/local/redis")
+    sudo("chown -R redis:redis /usr/local/redis")
+    sudo("touch /var/log/redis.log")
+    sudo("chown redis:redis /var/log/redis.log")
+    
+    redis_conf_filepath = os.path.join(os.path.dirname(__file__), "redis.conf")
+    assert(os.path.isfile(redis_conf_filepath))
+    put(redis_conf_filepath, "/usr/local/redis/redis.conf", use_sudo=True)
+    sudo("chown redis:redis /usr/local/redis/redis.conf")
+    
+    redis_initd_script = os.path.join(os.path.dirname(__file__), "init-deb.sh")
+    assert(os.path.isfile(redis_initd_script))
+    put(redis_initd_script, "/etc/init.d/redis", use_sudo=True)
+    sudo("chmod +x /etc/init.d/redis")
+    sudo("update-rc.d -f redis defaults")    
+    
+    sudo("/etc/init.d/redis start")
     
 def install_postgresql():
     logger = logging.getLogger("%s.install_postgresql" % (APP_NAME, ))
@@ -185,11 +212,7 @@ def init_postgresql():
     run("psql -d helpmeshop -f /usr/share/postgresql/9.0/contrib/uuid-ossp.sql")
     run("psql -d template1 -c \"ALTER USER postgres WITH PASSWORD 'password';\"")    
     run("psql -d template1 -c \"ALTER USER ubuntu WITH PASSWORD 'password';\"")    
-    
-def setup_postgresql():
-    logger = logging.getLogger("%s.setup_postgresql" % (APP_NAME, ))
-    logger.debug("entry")
-    
+   
 def setup_python():
     logger = logging.getLogger("%s.setup_python" % (APP_NAME, ))
     logger.debug("entry.")
@@ -351,17 +374,17 @@ def main():
     functions_to_call = [ \
                          #setup_timezone,
                          #install_bare_essentials,
-                         #install_erlang,
+                         #install_erlang,                         
                          #install_redis,
+                         #init_redis,
                          #install_memcached,
                          #install_haproxy,
                          #install_ack,
                          #setup_python,
                          #setup_ntp,
                          #harden,
-                         install_postgresql,
+                         #install_postgresql,
                          init_postgresql,
-                         #setup_postgresql,
                          #checkout_code,
                          #setup_bash_profile,
                          #setup_ssl
