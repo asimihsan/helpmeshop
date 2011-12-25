@@ -66,14 +66,14 @@ CREATE_ROLE_TABLE = """CREATE TABLE role (
 # User
 DROP_USER_TABLE = """DROP TABLE IF EXISTS helpmeshop_user;"""
 CREATE_USER_TABLE = """CREATE TABLE helpmeshop_user (
-    user_id UUID PRIMARY KEY,
+    helpmeshop_user_id UUID PRIMARY KEY,
     role_id UUID NOT NULL);"""
                                           
 # Google authentication details
 DROP_AUTH_GOOGLE_TABLE = """DROP TABLE IF EXISTS auth_google;"""
 CREATE_AUTH_GOOGLE_TABLE = """CREATE TABLE auth_google (
     email TEXT PRIMARY KEY,
-    user_id UUID UNIQUE NOT NULL,
+    helpmeshop_user_id UUID UNIQUE NOT NULL,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     name TEXT NOT NULL,
@@ -83,7 +83,7 @@ CREATE_AUTH_GOOGLE_TABLE = """CREATE TABLE auth_google (
 DROP_AUTH_FACEBOOK_TABLE = """DROP TABLE IF EXISTS auth_facebook;"""
 CREATE_AUTH_FACEBOOK_TABLE = """CREATE TABLE auth_facebook (
     id TEXT PRIMARY KEY,
-    user_id UUID UNIQUE NOT NULL,
+    helpmeshop_user_id UUID UNIQUE NOT NULL,
     link TEXT NOT NULL,
     access_token TEXT NOT NULL,
     locale TEXT NOT NULL,
@@ -96,20 +96,20 @@ CREATE_AUTH_FACEBOOK_TABLE = """CREATE TABLE auth_facebook (
 DROP_AUTH_TWITTER_TABLE = """DROP TABLE IF EXISTS auth_twitter;"""
 CREATE_AUTH_TWITTER_TABLE = """CREATE TABLE auth_twitter (
     username TEXT PRIMARY KEY,
-    user_id UUID UNIQUE NOT NULL,
+    helpmeshop_user_id UUID UNIQUE NOT NULL,
     profile_image_url TEXT NOT NULL);"""
 
 # BrowserID authentication details
 DROP_AUTH_BROWSERID_TABLE = """DROP TABLE IF EXISTS auth_browserid;"""
 CREATE_AUTH_BROWSERID_TABLE = """CREATE TABLE auth_browserid (
     email TEXT PRIMARY KEY,
-    user_id UUID UNIQUE NOT NULL);"""
+    helpmeshop_user_id UUID UNIQUE NOT NULL);"""
     
 # list
 DROP_LIST_TABLE = """DROP TABLE IF EXISTS list;"""
 CREATE_LIST_TABLE = """CREATE TABLE list (revision_id UUID PRIMARY KEY,
                                           list_id UUID NOT NULL,
-                                          user_id UUID NOT NULL,
+                                          helpmeshop_user_id UUID NOT NULL,
                                           datetime_edited TIMESTAMP NOT NULL,
                                           contents TEXT NOT NULL);"""
 

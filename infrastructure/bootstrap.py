@@ -67,11 +67,12 @@ logger = logging.getLogger(APP_NAME)
 # ----------------------------------------------------------------------
 REMOTE_USERNAME = "ubuntu"
 
-# Set either REMOTE_PASSWORD or KEY_FILENAME, where the latter is a patch
+# Set either REMOTE_PASSWORD or KEY_FILENAME, where the latter is a path
 # to an authorized RSA keyfile.  KEY_FILENAME is preferred.  Set whatever
 # you don't want to use to None.
-REMOTE_PASSWORD = "password" 
-KEY_FILENAME = None
+REMOTE_PASSWORD = "a83943eaf1603a74c1c420c80aa003d2"
+# REMOTE_PASSWORD = "password" 
+KEY_FILENAME = r"C:\Users\ai\Documents\puttykey-4096.pub"
 # ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
@@ -98,7 +99,10 @@ def setup_timezone():
     logger.debug("entry.")
     sudo("mv /etc/localtime /etc/localtime.backup")    
     sudo("ln -sf /usr/share/zoneinfo/UTC /etc/localtime")
-    sudo("/sbin/hwclock --systohc")
+    
+    # !!AI This fails on Linode Ubuntu 11.10. Why?
+    with settings(warn_only=True):
+        sudo("/sbin/hwclock --systohc")
 
 def install_erlang():
     logger = logging.getLogger("%s.install_erlang" % (APP_NAME, ))
@@ -182,9 +186,12 @@ def init_redis():
 def install_postgresql():
     logger = logging.getLogger("%s.install_postgresql" % (APP_NAME, ))
     logger.debug("entry.")
-    sudo(r"add-apt-repository ppa:pitti/postgresql")
+    
+    # !!AI This repo is causing problems on Linode Ubuntu 11.10, so don't do it.
+    #sudo(r"add-apt-repository ppa:pitti/postgresql")
+    
     sudo("apt-get update")
-    sudo("yes yes | apt-get install postgresql-9.0 libpq-dev postgresql-contrib-9.0")    
+    sudo("yes yes | apt-get install postgresql-9.1 libpq-dev postgresql-contrib-9.1 postgresql-common")    
     sudo("easy_install -U psycopg2")        
     sudo("rm -rf /tmp/tmp*")
     
@@ -193,23 +200,39 @@ def init_postgresql():
     logger.debug("entry")
     sudo("echo -e \"password\\npassword\" | passwd postgres")    
     sudo("rm -f /var/lib/postgresql/.bash_profile")
-    sudo("echo export PATH=${PATH}:/usr/lib/postgresql/9.0/bin >> /var/lib/postgresql/.bash_profile", user="postgres")    
+    sudo("echo export PATH=${PATH}:/usr/lib/postgresql/9.1/bin >> /var/lib/postgresql/.bash_profile", user="postgres")    
     
-    sudo("service postgresql stop", user="postgres")            
-    sudo("rm -rf /var/lib/postgresql/9.0/main")        
-    sudo("initdb -D /var/lib/postgresql/9.0/main", user="postgres")    
-    if not exists(r"/var/lib/postgresql/9.0/main/server.crt", use_sudo = True):
-        sudo("ln -s /etc/ssl/certs/ssl-cert-snakeoil.pem /var/lib/postgresql/9.0/main/server.crt")
-    if not exists(r"/var/lib/postgresql/9.0/main/server.key", use_sudo = True):            
-        sudo("ln -s /etc/ssl/private/ssl-cert-snakeoil.key /var/lib/postgresql/9.0/main/server.key")
+    # Window condition, if the initdb command fails postgres can no longer stop within a main
+    # directory. So just make one and don't crash if it already exists.
+    #
+    # Another oddity with either PostgreSQL 9.1 or Ubuntu 11.10. The default installation
+    # is now owned by root rather than postgres, so try to stop using both users.
+    with settings(warn_only=True):
+        sudo("mkdir -p /var/lib/postgresql/9.1/main")
+        sudo("service postgresql stop", user="postgres")
+        sudo("service postgresql stop")
+    sudo("rm -rf /var/lib/postgresql/9.1/main")        
+    sudo("/usr/lib/postgresql/9.1/bin/initdb -D /var/lib/postgresql/9.1/main", user="postgres")    
+    if not exists(r"/var/lib/postgresql/9.1/main/server.crt", use_sudo = True):
+        sudo("ln -s /etc/ssl/certs/ssl-cert-snakeoil.pem /var/lib/postgresql/9.1/main/server.crt")
+    if not exists(r"/var/lib/postgresql/9.1/main/server.key", use_sudo = True):            
+        sudo("ln -s /etc/ssl/private/ssl-cert-snakeoil.key /var/lib/postgresql/9.1/main/server.key")
     sudo("service postgresql start", user="postgres")    
     
     sudo("createuser -s ubuntu", user="postgres")
     sudo("createdb helpmeshop", user="postgres")    
-    run("psql -d helpmeshop -f /usr/share/postgresql/9.0/contrib/adminpack.sql")
-    run("psql -d helpmeshop -f /usr/share/postgresql/9.0/contrib/hstore.sql")
-    run("psql -d helpmeshop -f /usr/share/postgresql/9.0/contrib/pgcrypto.sql")
-    run("psql -d helpmeshop -f /usr/share/postgresql/9.0/contrib/uuid-ossp.sql")
+    
+    # !!AI PostgreSQL 9.1 changed how to install contrib modules! Instead of
+    # directly executing the SQL files you need to use the CREATE EXTENSION
+    # command. OK.
+    contrib_names = ["adminpack", "hstore", "pgcrypto", "uuid-ossp"]
+    for contrib_name in contrib_names:
+        run("psql -d helpmeshop -c 'CREATE EXTENSION \"%s\";'" % (contrib_name, ))    
+    #run("psql -d helpmeshop -f /usr/share/postgresql/9.1/contrib/adminpack.sql")
+    #run("psql -d helpmeshop -f /usr/share/postgresql/9.1/contrib/hstore.sql")
+    #run("psql -d helpmeshop -f /usr/share/postgresql/9.1/contrib/pgcrypto.sql")
+    #run("psql -d helpmeshop -f /usr/share/postgresql/9.1/contrib/uuid-ossp.sql")
+    
     run("psql -d template1 -c \"ALTER USER postgres WITH PASSWORD 'password';\"")    
     run("psql -d template1 -c \"ALTER USER ubuntu WITH PASSWORD 'password';\"")    
    
@@ -220,7 +243,20 @@ def setup_python():
         run("curl -O http://python-distribute.org/distribute_setup.py")    
         sudo("python distribute_setup.py")
         run("rm -f distribute*")
-    sudo("easy_install -U httplib2 boto fabric colorama twisted pycrypto tornado momoko pycket redis python-memcached paramiko")        
+    modules = ["httplib2",
+               "boto",
+               "fabric",
+               "colorama",
+               "twisted",
+               "cython",
+               "pycrypto",
+               "tornado",
+               "momoko",
+               "pycket",
+               "redis",
+               "python-memcached",
+               "paramiko"]
+    sudo("easy_install -U %s" % (" ".join(modules), ))        
     sudo("rm -rf /tmp/tmp*")
     
 def setup_ntp():
@@ -269,7 +305,14 @@ def harden():
     sed(filename = "/etc/ssh/sshd_config",
         before = "PermitRootLogin yes",
         after = "PermitRootLogin no",
-        use_sudo = True)                
+        use_sudo = True)
+    sed(filename = "/etc/ssh/sshd_config",
+        before = "PasswordAuthentication yes",
+        after = "PasswordAuthentication no",
+        use_sudo = True)
+    uncomment(filename = "/etc/ssh/sshd_config",
+              regex = "PasswordAuthentication no",
+              use_sudo = True)
     sudo("yes yes | apt-get install ufw")
     sudo("ufw allow ssh")
     sudo("ufw allow 80/tcp")
@@ -300,7 +343,7 @@ def setup_bash_profile():
     logger.debug("entry.")    
     sudo("rm -f ~/.bash_profile")
     append(filename = "~/.bash_profile",
-           text = "export PATH=${PATH}:/usr/lib/postgresql/9.0/bin:/usr/local/bin")         
+           text = "export PATH=${PATH}:/usr/lib/postgresql/9.1/bin:/usr/local/bin")         
            
 def setup_ssl():
     """ This isn't 100% unattended.  You'll need to type in 'password' at all
@@ -350,7 +393,8 @@ def call_fabric_function(function, remote_host, *args, **kwds):
     if KEY_FILENAME is not None:
         with settings(host_string=remote_host,
                       user=REMOTE_USERNAME,
-                      key_filename=KEY_FILENAME):            
+                      key_filename=KEY_FILENAME,
+                      password=REMOTE_PASSWORD):            
             function(*args, **kwds)
     else:
         assert(REMOTE_PASSWORD is not None)
@@ -384,10 +428,10 @@ def main():
                          #setup_ntp,
                          #harden,
                          #install_postgresql,
-                         init_postgresql,
-                         #checkout_code,
-                         #setup_bash_profile,
-                         #setup_ssl
+                         #init_postgresql,
+                         checkout_code,
+                         setup_bash_profile,
+                         setup_ssl
                         ]
     # ------------------------------------------------------------------
     logger.info("executing the following functions:\n%s" % (pprint.pformat(functions_to_call), ))
