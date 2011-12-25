@@ -39,7 +39,12 @@
                     <li class="active"><a href="#">Home</a></li>
                     <li><a href="#about">About</a></li>
                     <li><a href="#contact">Contact</a></li>
-                </ul>
+                </ul>                
+                {% if user %}
+                <ul class="nav secondary-nav">
+                    <li><a href="/logout">Logout</a></li>
+                </ul>                
+                {% end %}
             </div>
         </div>
     </div>
