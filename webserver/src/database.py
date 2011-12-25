@@ -55,7 +55,7 @@ class DatabaseManager(object):
             'cleanup_timeout': options.database_cleanup_timeout})
 
         # Start a connection to the redis to the database ID that stores
-        # cached versions of database results. Delete all of them.
+        # cached versions of database read queries. Delete all of them.
         self.r = redis.StrictRedis(host=options.redis_hostname,
                                    port=options.redis_port,
                                    db=options.redis_database_id_for_database_results)
@@ -75,7 +75,7 @@ class DatabaseManager(object):
         logger.debug("entry. statement: %s, args: %s" % (statement, args))
         
         key_elem = pickle.dumps((statement, args), -1)
-        key = base64.b64encode(hashlib.md5(key_elem).digest())
+        key = hashlib.md5(key_elem).digest()
         value_pickled = self.r.get(key)        
         if not value_pickled:
             logger.debug("cache miss")
