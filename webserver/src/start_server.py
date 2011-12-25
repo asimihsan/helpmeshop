@@ -77,13 +77,7 @@ class BaseHandler(tornado.web.RequestHandler):
         return self.get_secure_cookie("user")
 
 class MainHandler(BaseHandler):
-    def get(self):
-        #if not self.current_user:
-        #    self.redirect("/login/browserid/")
-        #    return
-        #name = tornado.escape.xhtml_escape(self.current_user)
-        #self.write("Hello, " + name)
-        
+    def get(self):        
         user = None
         if self.current_user:
             user = tornado.escape.xhtml_escape(self.current_user)
