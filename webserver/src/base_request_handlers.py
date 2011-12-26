@@ -53,7 +53,7 @@ class BaseLoginHandler(BaseHandler):
             # If the user is already authorized then just re-set their
             # authorization expiry time.
             logger.debug("User is already authorized.")
-            self.set_user_expiry(user_id)
+            self.user_session.set_user_expiry(user_id)
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------

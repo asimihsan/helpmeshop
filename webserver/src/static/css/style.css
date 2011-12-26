@@ -393,9 +393,9 @@ body {
   color: #404040;
 }
 .container {
-  width: 940px;
+  max-width: 460px;
   margin-left: auto;
-  margin-right: auto;
+  margin-right: auto;  
   zoom: 1;
 }
 .container:before, .container:after {
@@ -2684,9 +2684,6 @@ button.btn::-moz-focus-inner, input[type=submit].btn::-moz-focus-inner {
   .container > footer p {
     text-align: center; /* center align it with the container */
   }
-  .container {
-    width: 820px; /* downsize our container to make the content feel a bit tighter and more cohesive. NOTE: this removes two full columns from the grid, meaning you only go to 14 columns and not 16. */
-  }
 
   /* The white background content wrapper */
   .content {
@@ -2708,34 +2705,9 @@ button.btn::-moz-focus-inner, input[type=submit].btn::-moz-focus-inner {
     margin: -20px -20px 20px;
   }
 
-  /* Styles you shouldn't keep as they are for displaying this base example only */
-  .content .span10,
-  .content .span4 {
-    min-height: 500px;
-  }
-  /* Give a quick and non-cross-browser friendly divider */
-  .content .span4 {
-    margin-left: 0;
-    padding-left: 19px;
-    border-left: 1px solid #eee;
-  }
-
   .topbar .btn {
     border: 0;
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* ==|== media queries ======================================================
    PLACEHOLDER Media Queries for Responsive Design.
@@ -2750,6 +2722,10 @@ button.btn::-moz-focus-inner, input[type=submit].btn::-moz-focus-inner {
 
 @media only screen and (min-width: 768px) {
   /* Style adjustments for viewports 768px and over go here */
+  
+    .container {
+      max-width: 820px;
+    }
 
 }
 
