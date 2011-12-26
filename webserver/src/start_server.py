@@ -25,8 +25,10 @@ from auth_request_handlers import LoginTwitterHandler
 from auth_request_handlers import LoginBrowserIDHandler
 from auth_request_handlers import LogoutHandler
 
-from ListHandler import ListDisplayHandler
+from ListHandler import ListReadHandler
 from ListHandler import ListCreateHandler
+from ListHandler import ListDeleteHandler
+from ListHandler import ListCreateItemHandler
 
 from model.List import List
 from model.ListItem import ListItem
@@ -125,8 +127,10 @@ class Application(tornado.web.Application):
             (r"/login/twitter/", LoginTwitterHandler),
             (r"/login/browserid/", LoginBrowserIDHandler),
             (r"/logout", LogoutHandler),
-            tornado.web.URLSpec(pattern=r"/list/(.*)", handler_class=ListDisplayHandler, name="ListDisplayHandler"),
-            tornado.web.URLSpec(pattern=r"/create_list/", handler_class=ListCreateHandler, name="ListCreateHandler"),
+            tornado.web.URLSpec(pattern=r"/read_list/(.*)",   handler_class=ListReadHandler, name="ListReadHandler"),
+            tornado.web.URLSpec(pattern=r"/create_list/",     handler_class=ListCreateHandler, name="ListCreateHandler"),
+            tornado.web.URLSpec(pattern=r"/delete_list/(.*)", handler_class=ListDeleteHandler, name="ListDeleteHandler"),
+            tornado.web.URLSpec(pattern=r"/create_item/(.*)", handler_class=ListCreateItemHandler, name="ListCreateItemHandler"),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),

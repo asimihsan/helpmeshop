@@ -14,8 +14,8 @@
             <tbody>
                 {% for list_obj in lists %}
                 <tr>
-                    <td><a href="{{ reverse_url("ListDisplayHandler", list_obj.url_safe_list_id) }}">{{ list_obj.title }}</a></td>
-                    <td>Delete this list</td>
+                    <td><a href="{{ reverse_url("ListReadHandler", list_obj.url_safe_list_id) }}">{{ list_obj.title }}</a></td>
+                    <td><a href="{{ reverse_url("ListDeleteHandler", list_obj.url_safe_list_id) }}">Delete this list</a></td>
                 </tr>
                 {% end %}
 

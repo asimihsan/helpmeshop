@@ -41,7 +41,7 @@
                 <a class="brand" href="/">Help Me Shop</a>
                 {% end %}
                 <ul class="nav">
-                    <li class="active"><a href="#">Home</a></li>
+                    <li class="active"><a href="/">Home</a></li>
                     <li><a href="#about">About</a></li>
                     <li><a href="#contact">Contact</a></li>
                 </ul>                
@@ -68,17 +68,9 @@
                 {% if user %}
                     {% include breadcrumbs.html %}
                     <p>I think you are: {{ user }}</p>
-                {% else %}
-                    <p>You aren't logged in! Do so below.</p>
-                    <p>
-                        <ul>
-                            <li><a href="/login/google/">Login using Google</a></li>
-                            <li><a href="/login/facebook/">Login using Facebook</a></li>
-                            <li><a href="/login/twitter/">Login using Twitter</a></li>
-                            <li><a href="#" id="browserid">Login using BrowserID</a></li>
-                        </ul>
-                    </p>
                 {% end %}
+                {% include fragment_list_contents.html %}
+
             </div>
         </div>
     </div>    
