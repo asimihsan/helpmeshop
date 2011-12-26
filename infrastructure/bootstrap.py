@@ -430,8 +430,8 @@ def main():
                          #install_postgresql,
                          #init_postgresql,
                          checkout_code,
-                         setup_bash_profile,
-                         setup_ssl
+                         #setup_bash_profile,
+                         #setup_ssl
                         ]
     # ------------------------------------------------------------------
     logger.info("executing the following functions:\n%s" % (pprint.pformat(functions_to_call), ))

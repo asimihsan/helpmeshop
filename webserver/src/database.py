@@ -68,11 +68,18 @@ class DatabaseManager(object):
     
     # ------------------------------------------------------------------------
     #   Database statements for list CRUD.
+    #
+    #   We define the owner of a list as the user that created the list,
+    #   i.e. the user who has the oldest datetime_edited for all revisions
+    #   of a given list.
     # ------------------------------------------------------------------------
     CREATE_LIST_WITH_USER_ID_AND_CONTENTS_RETURN_LIST_ID = """
         INSERT INTO list (revision_id, list_id, helpmeshop_user_id, datetime_edited, contents)
         VALUES (uuid_generate_v4(), uuid_generate_v4(), %s, now(), %s)
         RETURNING list_id;"""
+    UPDATE_LIST_WITH_LIST_ID_AND_USER_ID_AND_CONTENTS = """
+        INSERT INTO list (revision_id, list_id, helpmeshop_user_id, datetime_edited, contents)
+        VALUES (uuid_generate_v4(), %s, %s, now(), %s);"""        
     GET_LATEST_LISTS_WITH_USER_ID = """
         SELECT L.revision_id, L.list_id, L.contents, L.datetime_edited
         FROM list L
@@ -84,6 +91,32 @@ class DatabaseManager(object):
         ) X
         ON X.list_id = L.list_id AND
            X.datetime_edited = L.datetime_edited;"""
+    GET_LATEST_LIST_WITH_LIST_ID = """
+        SELECT L.revision_id, L.list_id, L.contents, L.datetime_edited
+        FROM list L
+        INNER JOIN (
+            SELECT list_id, MAX(datetime_edited) AS datetime_edited
+            FROM list
+            GROUP BY list_id
+        ) X
+        ON X.list_id = L.list_id AND
+           X.datetime_edited = L.datetime_edited
+        WHERE L.list_id = %s;"""
+    DELETE_LIST_WITH_LIST_ID_AND_USER_ID = """
+        DELETE FROM list
+        WHERE revision_id IN (
+            SELECT L.revision_id
+            FROM LIST L
+            INNER JOIN (
+                SELECT list_id, MIN(datetime_edited) AS datetime_edited
+                FROM list
+                WHERE list_id = %s
+                GROUP BY list_id
+            ) X
+            ON X.list_id = L.list_id AND
+               X.datetime_edited = L.datetime_edited
+            WHERE L.helpmeshop_user_id = %s
+        );"""
     # ------------------------------------------------------------------------
 
     def __init__(self):
@@ -176,6 +209,20 @@ class DatabaseManager(object):
         logger.debug("new_list_id: %s" % (new_list_id, ))  
         assert(new_list_id is not None)
         callback(new_list_id)
+
+    @tornado.gen.engine
+    def update_list(self, list_id, user_id, contents, callback):
+        logger = logging.getLogger("DatabaseManager.update_list")
+        logger.debug("entry. list_id: %s, user_id: %s, contents: %s" % (list_id, user_id, contents))        
+        cursor = yield tornado.gen.Task(self.db.execute,
+                                        self.UPDATE_LIST_WITH_LIST_ID_AND_USER_ID_AND_CONTENTS,
+                                        (list_id, user_id, contents))        
+        if cursor.rowcount != 1:        
+            rc = False
+        else:
+            rc = True
+        logger.debug("returning: %s" % (rc, ))
+        callback(rc)
         
     #!!AI switch this to the cached version later.    
     @tornado.gen.engine
@@ -194,6 +241,43 @@ class DatabaseManager(object):
             list_obj = List(revision_id, list_id, contents, datetime_edited)
             lists.append(list_obj)
         callback(lists)
+        
+    @tornado.gen.engine
+    def delete_list(self, list_id, user_id, callback):
+        logger = logging.getLogger("DatabaseManager.delete_list")
+        logger.debug("Entry. list_id: %s, user_id: %s" % (list_id, user_id))
+        cursor = yield tornado.gen.Task(self.db.execute,
+                                        self.DELETE_LIST_WITH_LIST_ID_AND_USER_ID,
+                                        (list_id, user_id))        
+        # cursor.rowcount will indicate how many rows were deleted. If it isn't
+        # 1 something went wrong, e.g. user is trying to delete a list they didn't
+        # create.
+        if cursor.rowcount != 1:        
+            rc = False
+        else:
+            rc = True
+        logger.debug("returning: %s" % (rc, ))
+        callback(rc)        
+        
+    @tornado.gen.engine
+    def read_list(self, list_id, callback):
+        logger = logging.getLogger("DatabaseManager.read_list")
+        logger.debug("Entry. list_id: %s" % (list_id, ))
+        cursor = yield tornado.gen.Task(self.db.execute,
+                                        self.GET_LATEST_LIST_WITH_LIST_ID,
+                                        (list_id, ))        
+        if cursor.rowcount == 0:
+            logger.debug("Could not find the list.")
+            callback(None)
+        assert(cursor.rowcount == 1)
+        row = cursor.fetchone()
+        revision_id = row[0]
+        list_id = row[1]
+        contents = row[2]
+        datetime_edited = row[3]
+        list_obj = List(revision_id, list_id, contents, datetime_edited)
+        logger.debug("Returning: %s" % (list_obj, ))
+        callback(list_obj)        
     # ------------------------------------------------------------------------
 
     # ------------------------------------------------------------------------

@@ -1,0 +1,37 @@
+{% autoescape xhtml_escape %}
+
+<div class="span14">    
+    {% set title = list_obj.get_value_from_contents('title') %}
+    {% set list_items = list_obj.list_items %}
+    <h2>{{ title }}</h2>
+    
+    {% if len(list_items) == 0 %}
+        <p>This list is empty! Use the button below add an item.</p>
+    {% else %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>URL</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for list_item in list_items %}
+                <tr>
+                    <td>{{ list_item.title }}</td>
+                    <td>{{ list_item.url }}</td>
+                    <td>{{ list_item.notes }}</td>
+                    <td>Delete</td>
+                </tr>
+                {% end %}
+
+            </tbody>
+        </table>    
+    {% end %}    
+    <p>
+        <a class="btn large primary" href="{{ reverse_url("ListCreateItemHandler", list_obj.url_safe_list_id) }}">Add an item</a>
+        <a class="btn large danger" href="{{ reverse_url("ListDeleteHandler", list_obj.url_safe_list_id) }}">Delete this list</a>
+    </p>
+</div>

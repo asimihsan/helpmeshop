@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------------
+#   NOTES
+#
+#   !!AI This code frightens me. Refactor the whole thing.
+# ----------------------------------------------------------------------------
+
 import tornado.escape
 import json
 import logging
@@ -12,7 +18,8 @@ class List(object):
     REQUIRED_KEYS = ["revision_id", "list_id", "contents", "datetime_edited"]   
     ALL_KEYS = ["revision_id", "list_id", "contents", "datetime_edited", "list_items"]    
     
-    def __init__(self, revision_id, list_id, contents, datetime_edited, list_items=None):
+    def __init__(self, revision_id, list_id, contents, datetime_edited):
+        logger = logging.getLogger("List")
         assert List.validate_base64_parameter(revision_id)
         assert List.validate_base64_parameter(list_id)
     
@@ -21,9 +28,37 @@ class List(object):
         self.url_safe_list_id = List.convert_uuid_string_to_base64(self.list_id)
         self.contents = contents
         self.datetime_edited = datetime_edited
-        if list_items is None:
-            self.list_items = []
-        self.type = "list"
+        
+        self.list_items = []
+        try:
+            contents_decoded = tornado.escape.json_decode(self.contents)
+        except:
+            logger.exception("JSON decoding exception.")
+        else:            
+            if "list_items" in contents_decoded:                                
+                for list_item_encoded in contents_decoded['list_items']:                    
+                    list_item = ListItem.from_json(list_item_encoded)                    
+                    if list_item:                        
+                        self.list_items.append(list_item)
+            
+    def create_item(self, title=None, url=None, notes=None):
+        if len(self.list_items) == 0:
+            new_ident = "1"
+        else:
+            current_maximum_ident = max(int(elem.ident) for elem in self.list_items)
+            new_ident = str(current_maximum_ident + 1)
+        if not title:
+            title = "List item title"
+        list_item = ListItem(new_ident, title, url, notes)
+        self.list_items.append(list_item)
+        
+        contents_decoded = tornado.escape.json_decode(self.contents)
+        contents_decoded['list_items'] = [elem.to_json() for elem in self.list_items]
+        self.contents = tornado.escape.json_encode(contents_decoded)
+
+    def get_value_from_contents(self, key, default_value=None):
+        contents_decoded = tornado.escape.json_decode(self.contents)
+        return contents_decoded.get(key, default_value)
         
     def __repr__(self):
         key_value_pairs = ["%s=%s" % (key, getattr(self, key)) for key in self.ALL_KEYS]

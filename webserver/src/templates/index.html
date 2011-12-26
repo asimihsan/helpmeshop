@@ -42,7 +42,7 @@
                 <a class="brand" href="/">Help Me Shop</a>
                 {% end %}
                 <ul class="nav">
-                    <li class="active"><a href="#">Home</a></li>
+                    <li class="active"><a href="/">Home</a></li>
                     <li><a href="#about">About</a></li>
                     <li><a href="#contact">Contact</a></li>
                 </ul>                
@@ -69,7 +69,7 @@
                 {% if user %}
                     {% include breadcrumbs.html %}
                     <p>I think you are: {{ user }}</p>
-                    {% include lists.html %}
+                    {% include fragment_lists.html %}
                 {% else %}
                     <p>You aren't logged in! Do so below.</p>
                     <p>

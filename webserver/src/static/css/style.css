@@ -470,76 +470,76 @@ a:hover {
   margin-left: 20px;
 }
 .span1 {
-  width: 40px;
+  width: 20px;
 }
 .span2 {
-  width: 100px;
+  width: 50px;
 }
 .span3 {
-  width: 160px;
+  width: 80px;
 }
 .span4 {
-  width: 220px;
+  width: 110px;
 }
 .span5 {
-  width: 280px;
+  width: 140px;
 }
 .span6 {
-  width: 340px;
+  width: 180px;
 }
 .span7 {
-  width: 400px;
+  width: 200px;
 }
 .span8 {
-  width: 460px;
+  width: 230px;
 }
 .span9 {
-  width: 520px;
+  width: 260px;
 }
 .span10 {
-  width: 580px;
+  width: 290px;
 }
 .span11 {
-  width: 640px;
+  width: 320px;
 }
 .span12 {
-  width: 700px;
+  width: 350px;
 }
 .span13 {
-  width: 760px;
+  width: 380px;
 }
 .span14 {
-  width: 820px;
+  width: 410px;
 }
 .span15 {
-  width: 880px;
+  width: 440px;
 }
 .span16 {
-  width: 940px;
+  width: 470px;
 }
 .span17 {
-  width: 1000px;
+  width: 500px;
 }
 .span18 {
-  width: 1060px;
+  width: 530px;
 }
 .span19 {
-  width: 1120px;
+  width: 560px;
 }
 .span20 {
-  width: 1180px;
+  width: 590px;
 }
 .span21 {
-  width: 1240px;
+  width: 620px;
 }
 .span22 {
-  width: 1300px;
+  width: 650px;
 }
 .span23 {
-  width: 1360px;
+  width: 680px;
 }
 .span24 {
-  width: 1420px;
+  width: 710px;
 }
 .row > .offset1 {
   margin-left: 80px;
@@ -1504,7 +1504,7 @@ table .headerSortUp.purple, table .headerSortDown.purple {
  * Repeatable UI elements outside the base styles provided from the scaffolding
  * ---------------------------------------------------------------------------- */
 .topbar {
-  height: 40px;
+  height: 80px;
   position: fixed;
   top: 0;
   left: 0;
@@ -1537,7 +1537,7 @@ table .headerSortUp.purple, table .headerSortDown.purple {
 }
 .topbar p {
   margin: 0;
-  line-height: 40px;
+  line-height: 80px;
 }
 .topbar p a:hover {
   background-color: transparent;
@@ -1600,7 +1600,7 @@ table .headerSortUp.purple, table .headerSortDown.purple {
   -moz-box-shadow: 0 0 3px rgba(0, 0, 0, 0.15);
   box-shadow: 0 0 3px rgba(0, 0, 0, 0.15);
 }
-.topbar-inner, .topbar .fill {
+.topbar-inner, .topbar .fill {  
   background-color: #222;
   background-color: #222222;
   background-repeat: repeat-x;
@@ -2679,7 +2679,7 @@ button.btn::-moz-focus-inner, input[type=submit].btn::-moz-focus-inner {
     background-color: #eee;
   }
   body {
-    padding-top: 40px; /* 40px to make the container go all the way to the bottom of the topbar */
+    padding-top: 80px; /* 80px to make the container go all the way to the bottom of the topbar */
   }
   .container > footer p {
     text-align: center; /* center align it with the container */
@@ -2722,14 +2722,95 @@ button.btn::-moz-focus-inner, input[type=submit].btn::-moz-focus-inner {
 
 @media only screen and (min-width: 768px) {
   /* Style adjustments for viewports 768px and over go here */
-  
+    body {
+        padding-top: 40px; /* 40px to make the container go all the way to the bottom of the topbar */
+    }
+   
     .container {
       max-width: 820px;
     }
+    .span1 {
+      width: 40px;
+    }
+    .span2 {
+      width: 100px;
+    }
+    .span3 {
+      width: 160px;
+    }
+    .span4 {
+      width: 220px;
+    }
+    .span5 {
+      width: 280px;
+    }
+    .span6 {
+      width: 340px;
+    }
+    .span7 {
+      width: 400px;
+    }
+    .span8 {
+      width: 460px;
+    }
+    .span9 {
+      width: 520px;
+    }
+    .span10 {
+      width: 580px;
+    }
+    .span11 {
+      width: 640px;
+    }
+    .span12 {
+      width: 700px;
+    }
+    .span13 {
+      width: 760px;
+    }
+    .span14 {
+      width: 820px;
+    }
+    .span15 {
+      width: 880px;
+    }
+    .span16 {
+      width: 940px;
+    }
+    .span17 {
+      width: 1000px;
+    }
+    .span18 {
+      width: 1060px;
+    }
+    .span19 {
+      width: 1120px;
+    }
+    .span20 {
+      width: 1180px;
+    }
+    .span21 {
+      width: 1240px;
+    }
+    .span22 {
+      width: 1300px;
+    }
+    .span23 {
+      width: 1360px;
+    }
+    .span24 {
+      width: 1420px;
+    }
+    
+    .topbar {
+        height: 40px;
+    }
+    
+    .topbar p {
+        line-height: 40px;
+    }
 
 }
-
-
 
 /* ==|== non-semantic helper classes ========================================
    Please define your styles before this section.

@@ -7,9 +7,27 @@ class ListItem(object):
     def __init__(self, ident, title, url=None, notes=None):
         self.ident = ident
         self.title = title
-        self.url = url
-        self.notes = notes        
-       
+        self._url = url
+        self._notes = notes        
+    
+    @property
+    def url(self):
+        if not self._url:
+            return ""
+        return self._url
+    @url.setter
+    def url(self, url):
+        self._url = url
+        
+    @property
+    def notes(self):
+        if not self._notes:
+            return ""
+        return self._notes
+    @notes.setter
+    def notes(self, notes):
+        self._notes = notes
+    
     def __repr__(self):
         output = "{ListItem. ident=%s, title=%s, url=%s, notes=%s}" % (self.ident, self.title, self.url, self.notes)
         return output
