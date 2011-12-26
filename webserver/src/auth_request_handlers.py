@@ -115,7 +115,7 @@ class LoginTwitterHandler(BaseLoginHandler, tornado.auth.TwitterMixin):
         denied = self.get_argument("denied", None)
         logger.debug("denied: %s" % (denied, ))
         if denied:
-            raise tornado.web.HTTPError(500, "Twitter authentication failed. User refused to authorize.")                        
+            raise tornado.web.HTTPError(500, "Twitter authentication failed. User refused to authorize.")
     
         oauth_token = self.get_argument("oauth_token", None)
         logger.debug("oauth_token: %s" % (oauth_token, ))

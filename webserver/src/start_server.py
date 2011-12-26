@@ -15,6 +15,7 @@ import sys
 import json
 import base64
 import uuid
+import pprint
 
 from base_request_handlers import BasePageHandler
 
@@ -23,6 +24,12 @@ from auth_request_handlers import LoginFacebookHandler
 from auth_request_handlers import LoginTwitterHandler
 from auth_request_handlers import LoginBrowserIDHandler
 from auth_request_handlers import LogoutHandler
+
+from ListHandler import ListDisplayHandler
+from ListHandler import ListCreateHandler
+
+from model.List import List
+from model.ListItem import ListItem
 
 # ----------------------------------------------------------------------
 #   Constants.
@@ -54,7 +61,7 @@ define("twitter_consumer_secret", default=None, help="Twitter app consumer secre
 # ----------------------------------------------------------------------
 import logging
 import logging.handlers
-logger = logging.getLogger('')
+logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 ch = logging.StreamHandler()
@@ -76,12 +83,37 @@ logger = logging.getLogger(APP_NAME)
 # ----------------------------------------------------------------------
 
 class MainHandler(BasePageHandler):
+    @tornado.web.asynchronous
+    @tornado.gen.engine
     def get(self): 
         data = {}
         data['user'] = None
+        lists = []
         if self.current_user:
             data['user'] = tornado.escape.xhtml_escape(self.current_user)
-            
+            lists = yield tornado.gen.Task(self.db.get_lists, self.current_user)
+            for list_obj in lists:
+                contents_decoded = tornado.escape.json_decode(list_obj.contents)
+                setattr(list_obj, "title", contents_decoded["title"])
+            logger.debug("lists:\n%s" % (pprint.pformat(lists), ))        
+        data['lists'] = lists 
+        #li1 = ListItem("id1", "title1", "url1", "notes1")
+        #li2 = ListItem("id2", "title2", "url1")
+        #li3 = ListItem("id3", "title3")
+        #l1 = List("list id1", "list title1", [li1, li2, li3])
+        #lists = [l1, l1]        
+        #data['lists'] = lists 
+        
+        #logging.debug("li1:\n%s" % (pprint.pformat(li1), ))
+        #logging.debug("li2:\n%s" % (pprint.pformat(li2), ))
+        #logging.debug("li3:\n%s" % (pprint.pformat(li3), ))
+        #logging.debug("l1:\n%s" % (pprint.pformat(l1), ))
+        
+        #to_json = l1.to_json()
+        #logging.debug("l1 to json:\n%s" % (to_json, ))
+        #from_json = List.from_json(to_json)
+        #logging.debug("l1 back to object:\n%s" % (from_json, ))        
+        
         self.render("index.html", **data)            
 
 class Application(tornado.web.Application):
@@ -93,6 +125,8 @@ class Application(tornado.web.Application):
             (r"/login/twitter/", LoginTwitterHandler),
             (r"/login/browserid/", LoginBrowserIDHandler),
             (r"/logout", LogoutHandler),
+            tornado.web.URLSpec(pattern=r"/list/(.*)", handler_class=ListDisplayHandler, name="ListDisplayHandler"),
+            tornado.web.URLSpec(pattern=r"/create_list/", handler_class=ListCreateHandler, name="ListCreateHandler"),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
@@ -102,8 +136,8 @@ class Application(tornado.web.Application):
             
             # If you generate the cookie from scratch then server restarts will
             # render old cookies invalid. This affects fault-tolerance!
-            #cookie_secret='ANrq+RCiRu2VQQIdXOw2rQVT/BvavUI2nEA9TrfjesQ=',
-            cookie_secret=base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes),
+            cookie_secret='ANrq+RCiRu2VQQIdXOw2rQVT/BvavUI2nEA9TrfjesQ=',
+            #cookie_secret=base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes),
             
             # These two lines are required for the old-style OAuth1 Facebook 
             # authentication API. So just leave them here, might come in handy
