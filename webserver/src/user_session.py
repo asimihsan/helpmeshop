@@ -66,6 +66,7 @@ class UserSessionManager(object):
         logger = logging.getLogger("UserSessionManager.authorize_user")
         logger.debug("Entry. user_id: %s, authentication_type: %s" % (user_id, authentication_type))        
         assert(not self.is_user_authorized(user_id))
+        assert(authentication_type in ["facebook", "google", "twitter", "browserid", "api"])
         self.r.hset(user_id, "authentication_type", authentication_type)        
         self.set_user_expiry(user_id)
     
@@ -98,9 +99,16 @@ class UserSessionManager(object):
         logger.debug("Returning: %s" % (data, ))
         return data
         
-    def set_user_session_data(self, user_id, key, value):
+    def set_user_session_datum(self, user_id, key, value):
         """ Set a key/value pair on the user session data. """
-        logger = logging.getLogger("UserSessionManager.set_user_session_data")
+        logger = logging.getLogger("UserSessionManager.set_user_session_datum")
         logger.debug("Entry. user_id: %s, key: %s, value: %s" % (user_id, key, value))        
         assert(self.is_user_authorized(user_id))
         self.r.hset(user_id, key, value)
+        
+    def delete_user_session_datum(self, user_id, key):
+        """ Delete a key/value pair."""
+        logger = logging.getLogger("UserSessionManager.delete_user_session_datum")
+        logger.debug("Entry. user_id: %s, key: %s" % (user_id, key))        
+        assert(self.is_user_authorized(user_id))
+        self.r.hdel(user_id, key)

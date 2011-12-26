@@ -1,3 +1,15 @@
+# ----------------------------------------------------------------------------
+#   TODO
+#
+#!!AI How do you expire the cache? After CRUD operations. But how do
+# you efficiently locate old results? :). Can I get away with using
+# the KEYS command? Or do I need to use hash data structures in redis,
+# rather than straight keys?
+#
+#!!AI Surely sometimes I want to fetch rows from a cursor as dicts?
+# Fix the caching DB caller.
+# ----------------------------------------------------------------------------
+
 import tornado
 import tornado.gen
 from tornado.options import define, options
@@ -11,6 +23,8 @@ import base64
 
 import momoko
 import redis
+
+from model.List import List
 
 # ----------------------------------------------------------------------------
 #   Configuration constants.
@@ -49,8 +63,27 @@ class DatabaseManager(object):
     GET_ROLE_ID = """SELECT role_id FROM role WHERE role_name = %s;"""    
     CREATE_USER_AND_RETURN_USER_ID = """INSERT INTO helpmeshop_user (helpmeshop_user_id, role_id)
                                         VALUES (uuid_generate_v4(), %s)
-                                        RETURNING helpmeshop_user_id;"""
+                                        RETURNING helpmeshop_user_id;"""    
+    # ------------------------------------------------------------------------
     
+    # ------------------------------------------------------------------------
+    #   Database statements for list CRUD.
+    # ------------------------------------------------------------------------
+    CREATE_LIST_WITH_USER_ID_AND_CONTENTS_RETURN_LIST_ID = """
+        INSERT INTO list (revision_id, list_id, helpmeshop_user_id, datetime_edited, contents)
+        VALUES (uuid_generate_v4(), uuid_generate_v4(), %s, now(), %s)
+        RETURNING list_id;"""
+    GET_LATEST_LISTS_WITH_USER_ID = """
+        SELECT L.revision_id, L.list_id, L.contents, L.datetime_edited
+        FROM list L
+        INNER JOIN (
+            SELECT list_id, MAX(datetime_edited) AS datetime_edited
+            FROM list
+            WHERE helpmeshop_user_id = %s
+            GROUP BY list_id
+        ) X
+        ON X.list_id = L.list_id AND
+           X.datetime_edited = L.datetime_edited;"""
     # ------------------------------------------------------------------------
 
     def __init__(self):
@@ -128,7 +161,44 @@ class DatabaseManager(object):
         assert(len(only_row) == 1)        
         logger.debug("returning: %s" % (only_row[0], ))
         return only_row[0]        
-            
+        
+    # ------------------------------------------------------------------------
+    #   List CRUD.
+    # ------------------------------------------------------------------------    
+    @tornado.gen.engine
+    def create_list(self, user_id, contents, callback):
+        logger = logging.getLogger("DatabaseManager.create_list")
+        logger.debug("entry. user_id: %s, contents: %s" % (user_id, contents))        
+        cursor = yield tornado.gen.Task(self.db.execute,
+                                        self.CREATE_LIST_WITH_USER_ID_AND_CONTENTS_RETURN_LIST_ID,
+                                        (user_id, contents))        
+        new_list_id = self.extract_one_value_from_one_or_zero_rows(cursor)
+        logger.debug("new_list_id: %s" % (new_list_id, ))  
+        assert(new_list_id is not None)
+        callback(new_list_id)
+        
+    #!!AI switch this to the cached version later.    
+    @tornado.gen.engine
+    def get_lists(self, user_id, callback):
+        logger = logging.getLogger("DatabaseManager.get_lists")
+        logger.debug("entry. user_id: %s" % (user_id, ))        
+        rows = yield tornado.gen.Task(self.db.execute,
+                                      self.GET_LATEST_LISTS_WITH_USER_ID,
+                                      (user_id, ))                
+        lists = []
+        for row in rows:
+            revision_id = row[0]
+            list_id = row[1]
+            contents = row[2]
+            datetime_edited = row[3]
+            list_obj = List(revision_id, list_id, contents, datetime_edited)
+            lists.append(list_obj)
+        callback(lists)
+    # ------------------------------------------------------------------------
+
+    # ------------------------------------------------------------------------
+    #   User and role CRUD.
+    # ------------------------------------------------------------------------
     @tornado.gen.engine
     def get_role_id(self, type, callback):
         logger = logging.getLogger("DatabaseManager.get_role_id")
@@ -157,6 +227,7 @@ class DatabaseManager(object):
         logger.debug("new_user_id: %s" % (new_user_id, ))  
         assert(new_user_id is not None)
         callback(new_user_id)
+    # ------------------------------------------------------------------------
         
     # ------------------------------------------------------------------------
     #   Google authentication specific functions.

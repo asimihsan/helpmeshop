@@ -2,6 +2,7 @@
 import logging
 import tornado
 from tornado.options import define, options
+import re
 
 import database
 import user_session
@@ -10,6 +11,8 @@ import user_session
 #   Base request handler.
 # ----------------------------------------------------------------------------
 class BaseHandler(tornado.web.RequestHandler):
+    REGEXP_BASE64 = re.compile("^[A-Za-z0-9-_=]+$")
+
     @property
     def db(self):
         """ Create a database connection when a request handler is called
@@ -26,7 +29,13 @@ class BaseHandler(tornado.web.RequestHandler):
         """
         if not hasattr(self.application, 'user_session'):
             self.application.user_session = user_session.UserSessionManager()
-        return self.application.user_session
+        return self.application.user_session        
+
+    @staticmethod
+    def validate_base64_parameter(parameter):
+        """ Given a string in variable 'parameter' confirm that it is a
+        URL safe base64 encoded string. """
+        return BaseHandler.REGEXP_BASE64.search(parameter)
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
@@ -62,6 +71,6 @@ class BasePageHandler(BaseHandler):
             return None
         if not self.user_session.is_user_authorized(user_id):
             return None
-        return user_id
+        return user_id        
 # ----------------------------------------------------------------------------
 
