@@ -160,8 +160,7 @@ class ListReadHandler(BasePageHandler):
         logger = logging.getLogger("ListDisplayHandler.get")
         logger.debug("entry. list_id_base64: %s" % (list_id_base64, ))
         if not List.validate_base64_parameter(list_id_base64):
-            raise tornado.web.HTTPError(400, "List identifier is malformed.")
-            
+            raise tornado.web.HTTPError(400, "List identifier is malformed.")            
         list_id = List.convert_base64_to_uuid_string(str(list_id_base64))        
         logger.debug("list_id: %s" % (list_id, ))
         list_obj = yield tornado.gen.Task(self.db.read_list,                                
