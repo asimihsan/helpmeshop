@@ -23,7 +23,7 @@ class UserSessionManager(object):
         self.r = redis.StrictRedis(host=options.redis_hostname,
                                    port=options.redis_port,
                                    db=options.redis_database_id_for_user_sessions)
-        #self.r.flushall()            
+        #self.r.flushdb()            
         
     def is_user_authorized(self, user_id):
         """ Determine if a given user_id is authorized to be

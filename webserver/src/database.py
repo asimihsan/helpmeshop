@@ -20,6 +20,7 @@ import logging
 import cPickle as pickle
 import hashlib
 import base64
+import uuid
 
 import momoko
 import redis
@@ -43,13 +44,38 @@ define("redis_port", default=None, type=int, help="Redis server port")
 define("redis_database_id_for_database_results", default=None, type=int, help="Database ID for database statements")
 # ----------------------------------------------------------------------------
         
+# ----------------------------------------------------------------------------
+#   So how does database caching work?
+#   
+#`  We use redis. What do we cache? We want to map (statement, args) to
+#   (value). This is easy, and is done in execute_cached_db_statement().
+#   The much harder problem is what parts of the cache do we delete
+#   after executing operations that modify the database (create, update,
+#   or delete relevant elements)?
+#
+#   There are a spectrum of solutions here. The easier, but most useless,
+#   solution would be to empty the entire cache on any operation that
+#   changes the state of the database. This is the easiest to execute, but
+#   is a bit brutal.
+#
+#   Another easy solution would be to use very low time-to-live (TTL)
+#   values on all cache elements, and never delete any elements. But this
+#   doesn't feel like a cache, and seems hacky.
+#
+#   The hardest solution is to find every single statement that could
+#   be affected by a given database modification. There will be tradeoffs
+#   between time and space here (we use more memory in the cache to make
+#   the operation cheaper) but the worse part is that we'd need to
+#   hard code a lot of logic here, I think.
+#   
+#   I've accepted the hard solution, and to hard code a lot of logic.
+# ----------------------------------------------------------------------------
 class DatabaseManager(object):
     # ------------------------------------------------------------------------
     #   Database statements related to user authentication and CRUD.
     # ------------------------------------------------------------------------   
     GET_USER_ID_FROM_GOOGLE_EMAIL = """SELECT helpmeshop_user_id FROM auth_google WHERE email = %s;"""
     CREATE_AUTH_GOOGLE = """INSERT INTO auth_google (email, helpmeshop_user_id, first_name, last_name, name, locale) VALUES (%s, %s, %s, %s, %s, %s);"""    
-    
     GET_USER_ID_FROM_FACEBOOK_ID = """SELECT helpmeshop_user_id FROM auth_facebook WHERE id = %s;"""
     CREATE_AUTH_FACEBOOK = """INSERT INTO auth_facebook (id, helpmeshop_user_id, link, access_token, locale, first_name, last_name, name, picture)
                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"""    
@@ -102,21 +128,24 @@ class DatabaseManager(object):
         ON X.list_id = L.list_id AND
            X.datetime_edited = L.datetime_edited
         WHERE L.list_id = %s;"""
-    DELETE_LIST_WITH_LIST_ID_AND_USER_ID = """
-        DELETE FROM list
-        WHERE revision_id IN (
-            SELECT L.revision_id
-            FROM LIST L
-            INNER JOIN (
-                SELECT list_id, MIN(datetime_edited) AS datetime_edited
-                FROM list
-                WHERE list_id = %s
-                GROUP BY list_id
-            ) X
-            ON X.list_id = L.list_id AND
-               X.datetime_edited = L.datetime_edited
-            WHERE L.helpmeshop_user_id = %s
-        );"""
+    DELETE_LIST_WITH_LIST_ID = """DELETE FROM list WHERE list_id = %s;"""
+    GET_OWNER_USER_ID_WITH_LIST_ID = """
+        SELECT L.helpmeshop_user_id
+        FROM LIST L
+        INNER JOIN (
+            SELECT list_id, MIN(datetime_edited) AS datetime_edited
+            FROM list
+            WHERE list_id = %s
+            GROUP BY list_id
+        ) X
+        ON X.list_id = L.list_id AND
+           X.datetime_edited = L.datetime_edited;"""        
+    # ------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------
+    #   If a 
+    # ------------------------------------------------------------------------
+    
     # ------------------------------------------------------------------------
 
     def __init__(self):
@@ -135,7 +164,7 @@ class DatabaseManager(object):
         self.r = redis.StrictRedis(host=options.redis_hostname,
                                    port=options.redis_port,
                                    db=options.redis_database_id_for_database_results)
-        self.r.flushall()            
+        self.r.flushdb()            
 
     @tornado.gen.engine
     def execute_cached_db_statement(self, statement, args, callback):
@@ -150,19 +179,42 @@ class DatabaseManager(object):
         logger = logging.getLogger("DatabaseManager.execute_cached_db_statement")
         logger.debug("entry. statement: %s, args: %s" % (statement, args))
         
-        key_elems = [statement] + list(args)
+        # --------------------------------------------------------------------
+        #   Use, or create, an element in the cache that maps
+        #   (args, statement) to (value). If this is a cache miss then
+        #   execute the database query to get the value.
+        # --------------------------------------------------------------------        
+        key_elems = list(args) + [statement]
         key = ":".join(key_elems)
-        #key_elem = pickle.dumps((statement, args), -1)
-        #key = hashlib.md5(key_elem).digest()
         value_pickled = self.r.get(key)        
         if not value_pickled:
             logger.debug("cache miss")
             cursor = yield tornado.gen.Task(self.db.execute, statement, args)
             value = cursor.fetchall()
-            self.r.setex(key, 60 * 60 * 24, pickle.dumps(value))
+            self.r.setex(key, 60 * 60 * 24, pickle.dumps(value, -1))
         else:
             logger.debug("cache hit")
             value = pickle.loads(value_pickled)
+        # --------------------------------------------------------------------
+        
+        # --------------------------------------------------------------------
+        #   For each argument that is a UUID create a mapping
+        #   (UUID) to (args, statement). This will make deleting cache
+        #   elements subsequently faster.
+        #
+        #   This is a list of elements, because this isn't intended for lookup
+        #   but for use for deletion.
+        # --------------------------------------------------------------------
+        for elem in args:
+            try:
+                uuid_obj = uuid.UUID(elem)
+            except:
+                continue
+            logger.debug("argument %s is UUID %s, will cache to statement." % (elem, uuid_obj))
+            
+        # --------------------------------------------------------------------
+        
+        logger.debug("value: %s" % (value, ))
         callback(value)
 
     def extract_one_value_from_one_or_zero_rows(self, cursor_or_rows):
@@ -246,18 +298,54 @@ class DatabaseManager(object):
     def delete_list(self, list_id, user_id, callback):
         logger = logging.getLogger("DatabaseManager.delete_list")
         logger.debug("Entry. list_id: %s, user_id: %s" % (list_id, user_id))
+        
+        # --------------------------------------------------------------------
+        #   Validate assumptions.
+        # --------------------------------------------------------------------
+        try:
+            list_id_obj = uuid.UUID(list_id)
+        except:
+            logger.error("list_id is not a valid UUID.")
+            callback(None)
+        try:
+            user_id_obj = uuid.UUID(user_id)
+        except:
+            logger.error("user_id is not a valid UUID.")
+            callback(None)
+        # --------------------------------------------------------------------
+        
+        # --------------------------------------------------------------------
+        #   If the user_id making this request doesn't own the list then
+        #   refuse to do so. Return None to indicate this.
+        #
+        #   Remember that get_owner_user_id() returns a UUID object.
+        # --------------------------------------------------------------------        
+        owner_user_id_obj = yield tornado.gen.Task(self.get_owner_user_id,
+                                                   list_id)        
+        if (owner_user_id_obj != user_id_obj):
+            logger.debug("User making request is not the owner, who is: %s" % (owner_user_id_obj, ))
+            callback(None)
+        # --------------------------------------------------------------------        
+        
+        # --------------------------------------------------------------------
+        #   Delete the list and return whether the deletion is successful.
+        #
+        #   !!AI Regardless of whether the operation is successful or not
+        #   expire all cache data related to the list.
+        # --------------------------------------------------------------------
         cursor = yield tornado.gen.Task(self.db.execute,
-                                        self.DELETE_LIST_WITH_LIST_ID_AND_USER_ID,
-                                        (list_id, user_id))        
+                                        self.DELETE_LIST_WITH_LIST_ID,
+                                        (list_id, ))        
         # cursor.rowcount will indicate how many rows were deleted. If it isn't
         # 1 something went wrong, e.g. user is trying to delete a list they didn't
         # create.
         if cursor.rowcount != 1:        
             rc = False
         else:
-            rc = True
+            rc = True            
         logger.debug("returning: %s" % (rc, ))
         callback(rc)        
+        # --------------------------------------------------------------------
         
     @tornado.gen.engine
     def read_list(self, list_id, callback):
@@ -277,7 +365,24 @@ class DatabaseManager(object):
         datetime_edited = row[3]
         list_obj = List(revision_id, list_id, contents, datetime_edited)
         logger.debug("Returning: %s" % (list_obj, ))
-        callback(list_obj)        
+        callback(list_obj)     
+
+    @tornado.gen.engine
+    def get_owner_user_id(self, list_id, callback):
+        logger = logging.getLogger("DatabaseManager.get_owner_user_id")
+        logger.debug("Entry. list_id: %s" % (list_id, ))
+        rows = yield tornado.gen.Task(self.execute_cached_db_statement,
+                                      self.GET_OWNER_USER_ID_WITH_LIST_ID,
+                                      (list_id, ))        
+        if len(rows) == 0:
+            logger.debug("Could not identify the owner.")
+            callback(None)
+        assert(len(rows) == 1)
+        row = rows[0]
+        assert(len(row) == 1)
+        user_id_obj = uuid.UUID(row[0])
+        logger.debug("Returning: %s" % (user_id_obj, ))
+        callback(user_id_obj)
     # ------------------------------------------------------------------------
 
     # ------------------------------------------------------------------------

@@ -40,7 +40,7 @@ from boto.ec2.connection import EC2Connection
 from fabric.api import settings
 from fabric.contrib.console import confirm
 from fabric.operations import sudo, run, put
-from fabric.contrib.files import append, uncomment, sed, exists
+from fabric.contrib.files import contains, append, uncomment, sed, exists
 from fabric.context_managers import cd, path
 import fabric.network
 import colorama
@@ -70,9 +70,10 @@ REMOTE_USERNAME = "ubuntu"
 # Set either REMOTE_PASSWORD or KEY_FILENAME, where the latter is a path
 # to an authorized RSA keyfile.  KEY_FILENAME is preferred.  Set whatever
 # you don't want to use to None.
-REMOTE_PASSWORD = "w6S8WXu7d8"
+REMOTE_PASSWORD = "kleafEgcasp6"
 # REMOTE_PASSWORD = "password" 
 KEY_FILENAME = r"C:\Users\ai\Documents\puttykey-4096.pub"
+OPENSSH_AUTHORIZED_KEY_FILE = r"C:\Users\ai\Documents\puttykey-4096-openssh.pub"
 # ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
@@ -311,19 +312,56 @@ def install_pypy():
         run("rm -rf pypy-1.7*")    
     
 def harden():
+    """ References:
+        https://help.ubuntu.com/community/Security
+    """
     logger = logging.getLogger("%s.harden" % (APP_NAME, ))
     logger.debug("entry.")    
+    
+    # ------------------------------------------------------------------------    
+    # Set up stronger SSH defaults.
+    # https://help.ubuntu.com/community/StricterDefaults
+    # - No root login.
+    # - No password login.
+    # - Add our public key to the remote authorize_keys file
+    # - Grace login time to 20 seconds
+    # - Install SSH banner.
+    # ------------------------------------------------------------------------
     sed(filename = "/etc/ssh/sshd_config",
         before = "PermitRootLogin yes",
         after = "PermitRootLogin no",
         use_sudo = True)
+        
     sed(filename = "/etc/ssh/sshd_config",
         before = "PasswordAuthentication yes",
         after = "PasswordAuthentication no",
         use_sudo = True)
     uncomment(filename = "/etc/ssh/sshd_config",
               regex = "PasswordAuthentication no",
+              use_sudo = True)              
+    assert(os.path.isfile(OPENSSH_AUTHORIZED_KEY_FILE))
+    with open(OPENSSH_AUTHORIZED_KEY_FILE) as f:
+        authorized_key_line = f.readline().strip()
+    if not contains(filename = "~/.ssh/authorized_keys",
+                    text = authorized_key_line):
+        append(filename = "~/.ssh/authorized_keys",
+               text = authorized_key_line)
+           
+    sed(filename = "/etc/ssh/sshd_config",
+        before = "LoginGraceTime.*",
+        after = "LoginGraceTime 20",
+        use_sudo = True)
+    uncomment(filename = "/etc/ssh/sshd_config",
+              regex = "Banner \/etc\/issue.net",
               use_sudo = True)
+    banner_filepath = os.path.join(os.path.dirname(__file__), "banner.txt")
+    assert(os.path.isfile(banner_filepath))
+    put(banner_filepath, "/etc/banner.net", use_sudo=True)
+    # ------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------
+    # Set up firewall.
+    # ------------------------------------------------------------------------
     sudo("yes yes | apt-get install ufw")
     sudo("ufw allow ssh")
     sudo("ufw allow 80/tcp")
@@ -335,12 +373,28 @@ def harden():
     sudo("ufw default deny")
     sudo("ufw limit OpenSSH")
     sudo("yes yes | ufw enable")
+    # ------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------
+    # Set up denyhosts.
+    # ------------------------------------------------------------------------
     sudo("yes yes | apt-get install denyhosts")    
     sudo("cp /etc/denyhosts.conf /etc/denyhosts.conf.backup")
     sed(filename = "/etc/denyhosts.conf",
         before = "AGE_RESET_VALID.*=.*",
         after = "AGE_RESET_VALID=10m",
         use_sudo = True)
+    # ------------------------------------------------------------------------
+        
+    # ------------------------------------------------------------------------
+    # Make shared memory read-only
+    # https://help.ubuntu.com/community/StricterDefaults
+    # ------------------------------------------------------------------------
+    append(filename = "/etc/fstab",
+           text = "tmpfs     /dev/shm     tmpfs     defaults,ro     0     0",
+           use_sudo = True)
+    sudo("mount -o remount /dev/shm/")
+    # ------------------------------------------------------------------------    
         
 def checkout_code():
     logger = logging.getLogger("%s.checkout_code" % (APP_NAME, ))
@@ -435,10 +489,10 @@ def main():
                          #install_memcached,
                          #install_haproxy,
                          #install_ack,
-                         install_pypy,
+                         #install_pypy,
                          #setup_python,
                          #setup_ntp,
-                         #harden,
+                         harden,
                          #install_postgresql,
                          #init_postgresql,
                          #checkout_code,
