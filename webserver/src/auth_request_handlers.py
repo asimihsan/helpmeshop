@@ -1,3 +1,15 @@
+# ----------------------------------------------------------------------------
+#   TODO
+#
+#   !!AI Bug. You do a cached DB lookup to get the user_id associated with
+#   an authentication method, e.g. Facebook ID. The user doesn't exist,
+#   but now the query is cached to say the user doesn't exist. You create
+#   a user but do not expire the previous cached result. Hence from now
+#   on you think the user does not exist. Fix is to expire the cache,
+#   you'll need to start using a more efficient caching mechanism
+#   as I don't want to do "KEYS *".
+# ----------------------------------------------------------------------------
+
 import tornado
 import tornado.gen
 import tornado.web

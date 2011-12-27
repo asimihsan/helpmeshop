@@ -92,7 +92,7 @@ def install_bare_essentials():
               use_sudo = True)    
     sudo("apt-get update")
     sudo("yes yes | apt-get upgrade")
-    sudo("yes yes | apt-get install git mercurial build-essential unzip python-software-properties ruby curl python-dev htop vim vim-nox")
+    sudo("yes yes | apt-get install git mercurial build-essential unzip python-software-properties ruby curl python-dev htop vim vim-nox dtach")
 
 def setup_timezone():
     logger = logging.getLogger("%s.setup_timezone" % (APP_NAME, ))
@@ -299,6 +299,16 @@ def install_ack():
     sudo("curl -L http://cpanmin.us | perl - --sudo App::cpanminus")
     sudo("cpanm App::Ack")
     
+def install_pypy():
+    logger = logging.getLogger("%s.install_pypy" % (APP_NAME, ))
+    logger.debug("entry.")    
+    with cd("~"):
+        run("rm -rf pypy-1.7-linux*")
+        run("wget https://bitbucket.org/pypy/pypy/downloads/pypy-1.7-linux.tar.bz2")
+        sudo("mv pypy-1.7 /usr/local/")
+        sudo("ln -s /usr/local/pypy-1.7/bin/pypy /usr/local/bin/pypy")
+        run("rm -rf pypy-1.7*")    
+    
 def harden():
     logger = logging.getLogger("%s.harden" % (APP_NAME, ))
     logger.debug("entry.")    
@@ -424,12 +434,13 @@ def main():
                          #install_memcached,
                          #install_haproxy,
                          #install_ack,
+                         install_pypy,
                          #setup_python,
                          #setup_ntp,
                          #harden,
                          #install_postgresql,
                          #init_postgresql,
-                         checkout_code,
+                         #checkout_code,
                          #setup_bash_profile,
                          #setup_ssl
                         ]
