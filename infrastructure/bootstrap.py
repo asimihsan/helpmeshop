@@ -70,7 +70,7 @@ REMOTE_USERNAME = "ubuntu"
 # Set either REMOTE_PASSWORD or KEY_FILENAME, where the latter is a path
 # to an authorized RSA keyfile.  KEY_FILENAME is preferred.  Set whatever
 # you don't want to use to None.
-REMOTE_PASSWORD = "a83943eaf1603a74c1c420c80aa003d2"
+REMOTE_PASSWORD = "w6S8WXu7d8"
 # REMOTE_PASSWORD = "password" 
 KEY_FILENAME = r"C:\Users\ai\Documents\puttykey-4096.pub"
 # ----------------------------------------------------------------------
@@ -305,6 +305,7 @@ def install_pypy():
     with cd("~"):
         run("rm -rf pypy-1.7-linux*")
         run("wget https://bitbucket.org/pypy/pypy/downloads/pypy-1.7-linux.tar.bz2")
+        run("tar xvf pypy-1.7-linux.tar.bz2")
         sudo("mv pypy-1.7 /usr/local/")
         sudo("ln -s /usr/local/pypy-1.7/bin/pypy /usr/local/bin/pypy")
         run("rm -rf pypy-1.7*")    
