@@ -1,13 +1,6 @@
 # ----------------------------------------------------------------------------
 #   TODO
 #
-#   !!AI Bug. You do a cached DB lookup to get the user_id associated with
-#   an authentication method, e.g. Facebook ID. The user doesn't exist,
-#   but now the query is cached to say the user doesn't exist. You create
-#   a user but do not expire the previous cached result. Hence from now
-#   on you think the user does not exist. Fix is to expire the cache,
-#   you'll need to start using a more efficient caching mechanism
-#   as I don't want to do "KEYS *".
 # ----------------------------------------------------------------------------
 
 import tornado
@@ -25,6 +18,8 @@ import pprint
 
 from base_request_handlers import BasePageHandler
 from base_request_handlers import BaseLoginHandler
+
+from utilities import normalize_uuid_string
 
 # --------------------------------------------------------------------
 # NOTES
@@ -48,13 +43,20 @@ define("facebook_app_secret", default=None, help="Facebook app secret")
 
 class LogoutHandler(BasePageHandler):
     """ Just delete the user session data for the current user, this will
-    log them out. If noone is logged in then ignore. """
+    log them out. If noone is logged in then ignore.
+    
+    Let's do ourselves a favour and delete all database cache elements to
+    do with the user as well. The user implicitly expects the logout to
+    result in a clean slate, so let's give it to them.
+    """
     def get(self):
         logger = logging.getLogger("LogoutHandler.get")
         logger.debug("entry.")        
         if self.current_user:
             logger.debug("User currently logged in: %s" % (self.current_user, ))
             self.user_session.deauthorize_user(self.current_user)
+            normalized_user_id = normalize_uuid_string(self.current_user)
+            self.db.expire_cache(normalized_user_id)
         self.redirect("/")
 
 # ----------------------------------------------------------------------------
@@ -161,7 +163,8 @@ class LoginTwitterHandler(BaseLoginHandler, tornado.auth.TwitterMixin):
                                         user_id,
                                         user["profile_image_url"])
             logger.debug("create_auth_twitter rc: %s" % (rc, ))
-            assert(rc == True)        
+            assert(rc == True)
+            
         self.set_secure_cookie_and_authorization(user_id, "twitter")
         self.redirect("/")
 # ----------------------------------------------------------------------------
@@ -238,7 +241,8 @@ class LoginFacebookHandler(BaseLoginHandler, tornado.auth.FacebookGraphMixin):
                                         user["name"],
                                         user["picture"])                                       
             logger.debug("create_auth_facebook rc: %s" % (rc, ))
-            assert(rc == True)                        
+            assert(rc == True)
+            
         self.set_secure_cookie_and_authorization(user_id, "facebook")
         self.redirect("/") 
 
@@ -325,7 +329,8 @@ class LoginGoogleHandler(BaseLoginHandler, tornado.auth.GoogleMixin):
                                         user["name"],
                                         user["locale"])
             logger.debug("create_auth_twitter rc: %s" % (rc, ))
-            assert(rc == True)        
+            assert(rc == True)
+            
         self.set_secure_cookie_and_authorization(user_id, "google")
         self.redirect("/")
 # ----------------------------------------------------------------------------

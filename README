@@ -4,7 +4,7 @@ TODO
 - Add authentication type "API". This means username/password login. This will allow easy automated testing.
 - Do code reading of every webserver source file, come up with more fix ideas and refactoring ideas.
 - Factor out templates into header, footer, etc.
-- Fix display of a particular list. Rather than multiple columns there should be one column of complex rox.
+- Fix display of a particular list. Rather than multiple columns there should be one column of complex rows.
 - Implement CRUD of list items.
 - Implement CRUD of lists.
 - Implement Selenium tests of basic functionality.

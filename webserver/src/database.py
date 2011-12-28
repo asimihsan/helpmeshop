@@ -1,11 +1,6 @@
 # ----------------------------------------------------------------------------
 #   TODO
 #
-#!!AI How do you expire the cache? After CRUD operations. But how do
-# you efficiently locate old results? :). Can I get away with using
-# the KEYS command? Or do I need to use hash data structures in redis,
-# rather than straight keys?
-#
 #!!AI Surely sometimes I want to fetch rows from a cursor as dicts?
 # Fix the caching DB caller.
 # ----------------------------------------------------------------------------
@@ -21,11 +16,13 @@ import cPickle as pickle
 import hashlib
 import base64
 import uuid
+import bz2
 
 import momoko
 import redis
 
 from model.List import List
+from utilities import normalize_uuid_string
 
 # ----------------------------------------------------------------------------
 #   Configuration constants.
@@ -166,25 +163,53 @@ class DatabaseManager(object):
                                    db=options.redis_database_id_for_database_results)
         self.r.flushdb()            
 
+    def expire_cache(self, pattern):
+        """ Expire all keys in the catch that contain 'pattern',
+        which is a string.  For a given database query call this
+        function repeatedly for every argument you used.
+        
+        This function will not normalize UUIDs for you, i.e.
+        remove the dashes! Do this yourself!"""
+        logger = logging.getLogger("DatabaseManager.expire_cache")
+        logger.debug("entry. pattern: %s" % (pattern))
+        substring_pattern = "*%s*" % (pattern, )
+        for key in self.r.keys(substring_pattern):
+            self.r.delete(key)
+        
     @tornado.gen.engine
-    def execute_cached_db_statement(self, statement, args, callback):
+    def execute_cached_db_statement(self,
+                                    statement,
+                                    args,
+                                    statement_name,
+                                    callback):
         """ Execute a database statement. Use a redis-based cache.
         Only call this function for database queries that gather
         data, rather than modify data, i.e. SELECT statements.
         
         This will return the full result of cursor.fetchall(). If
         you need access to the actual cursor don't use this
-        function, as cursors can't be pickled."""
+        function, as cursors can't be pickled.
+        
+        statement is a string of the database query you want to
+        execute. args is a tuple of arguments. statement_name
+        is a string of the variable that the database statement
+        string comes from.
+        """
         
         logger = logging.getLogger("DatabaseManager.execute_cached_db_statement")
-        logger.debug("entry. statement: %s, args: %s" % (statement, args))
+        logger.debug("entry. statement_name: %s, args: %s" % (statement_name, args))
         
         # --------------------------------------------------------------------
         #   Use, or create, an element in the cache that maps
         #   (args, statement) to (value). If this is a cache miss then
         #   execute the database query to get the value.
+        #
+        #   For each arg that looks like a UUID remove all the dashes
+        #   from it. This helps with future lookups.
         # --------------------------------------------------------------------        
-        key_elems = list(args) + [statement]
+        args_with_normalized_uuids = [normalize_uuid_string(elem) for elem in args]
+        logger.debug("args_with_normalized_uuids: %s" % (args_with_normalized_uuids, ))        
+        key_elems = args_with_normalized_uuids + [statement_name]        
         key = ":".join(key_elems)
         value_pickled = self.r.get(key)        
         if not value_pickled:
@@ -195,24 +220,7 @@ class DatabaseManager(object):
         else:
             logger.debug("cache hit")
             value = pickle.loads(value_pickled)
-        # --------------------------------------------------------------------
-        
-        # --------------------------------------------------------------------
-        #   For each argument that is a UUID create a mapping
-        #   (UUID) to (args, statement). This will make deleting cache
-        #   elements subsequently faster.
-        #
-        #   This is a list of elements, because this isn't intended for lookup
-        #   but for use for deletion.
-        # --------------------------------------------------------------------
-        for elem in args:
-            try:
-                uuid_obj = uuid.UUID(elem)
-            except:
-                continue
-            logger.debug("argument %s is UUID %s, will cache to statement." % (elem, uuid_obj))
-            
-        # --------------------------------------------------------------------
+        # --------------------------------------------------------------------        
         
         logger.debug("value: %s" % (value, ))
         callback(value)
@@ -254,9 +262,13 @@ class DatabaseManager(object):
     def create_list(self, user_id, contents, callback):
         logger = logging.getLogger("DatabaseManager.create_list")
         logger.debug("entry. user_id: %s, contents: %s" % (user_id, contents))        
+        
         cursor = yield tornado.gen.Task(self.db.execute,
                                         self.CREATE_LIST_WITH_USER_ID_AND_CONTENTS_RETURN_LIST_ID,
                                         (user_id, contents))        
+        normalized_user_id = normalize_uuid_string(user_id)
+        self.expire_cache(normalized_user_id)                        
+
         new_list_id = self.extract_one_value_from_one_or_zero_rows(cursor)
         logger.debug("new_list_id: %s" % (new_list_id, ))  
         assert(new_list_id is not None)
@@ -268,7 +280,12 @@ class DatabaseManager(object):
         logger.debug("entry. list_id: %s, user_id: %s, contents: %s" % (list_id, user_id, contents))        
         cursor = yield tornado.gen.Task(self.db.execute,
                                         self.UPDATE_LIST_WITH_LIST_ID_AND_USER_ID_AND_CONTENTS,
-                                        (list_id, user_id, contents))        
+                                        (list_id, user_id, contents))   
+        normalized_list_id = normalize_uuid_string(list_id)
+        self.expire_cache(normalized_list_id)                        
+        normalized_user_id = normalize_uuid_string(user_id)
+        self.expire_cache(normalized_user_id)                        
+        
         if cursor.rowcount != 1:        
             rc = False
         else:
@@ -276,14 +293,14 @@ class DatabaseManager(object):
         logger.debug("returning: %s" % (rc, ))
         callback(rc)
         
-    #!!AI switch this to the cached version later.    
     @tornado.gen.engine
     def get_lists(self, user_id, callback):
         logger = logging.getLogger("DatabaseManager.get_lists")
         logger.debug("entry. user_id: %s" % (user_id, ))        
-        rows = yield tornado.gen.Task(self.db.execute,
+        rows = yield tornado.gen.Task(self.execute_cached_db_statement,
                                       self.GET_LATEST_LISTS_WITH_USER_ID,
-                                      (user_id, ))                
+                                      (user_id, ),
+                                      "GET_LATEST_LISTS_WITH_USER_ID")                
         lists = []
         for row in rows:
             revision_id = row[0]
@@ -329,13 +346,15 @@ class DatabaseManager(object):
         
         # --------------------------------------------------------------------
         #   Delete the list and return whether the deletion is successful.
-        #
-        #   !!AI Regardless of whether the operation is successful or not
-        #   expire all cache data related to the list.
         # --------------------------------------------------------------------
         cursor = yield tornado.gen.Task(self.db.execute,
                                         self.DELETE_LIST_WITH_LIST_ID,
-                                        (list_id, ))        
+                                        (list_id, ))    
+        normalized_list_id = normalize_uuid_string(list_id)
+        self.expire_cache(normalized_list_id)                        
+        normalized_user_id = normalize_uuid_string(user_id)
+        self.expire_cache(normalized_user_id)                        
+        
         # cursor.rowcount will indicate how many rows were deleted. If it isn't
         # 1 something went wrong, e.g. user is trying to delete a list they didn't
         # create.
@@ -351,14 +370,15 @@ class DatabaseManager(object):
     def read_list(self, list_id, callback):
         logger = logging.getLogger("DatabaseManager.read_list")
         logger.debug("Entry. list_id: %s" % (list_id, ))
-        cursor = yield tornado.gen.Task(self.db.execute,
-                                        self.GET_LATEST_LIST_WITH_LIST_ID,
-                                        (list_id, ))        
-        if cursor.rowcount == 0:
+        rows = yield tornado.gen.Task(self.execute_cached_db_statement,
+                                      self.GET_LATEST_LIST_WITH_LIST_ID,
+                                      (list_id, ),
+                                      "GET_LATEST_LIST_WITH_LIST_ID")                
+        if len(rows) == 0:
             logger.debug("Could not find the list.")
             callback(None)
-        assert(cursor.rowcount == 1)
-        row = cursor.fetchone()
+        assert(len(rows) == 1)
+        row = rows[0]
         revision_id = row[0]
         list_id = row[1]
         contents = row[2]
@@ -373,7 +393,8 @@ class DatabaseManager(object):
         logger.debug("Entry. list_id: %s" % (list_id, ))
         rows = yield tornado.gen.Task(self.execute_cached_db_statement,
                                       self.GET_OWNER_USER_ID_WITH_LIST_ID,
-                                      (list_id, ))        
+                                      (list_id, ),
+                                      "GET_OWNER_USER_ID_WITH_LIST_ID")        
         if len(rows) == 0:
             logger.debug("Could not identify the owner.")
             callback(None)
@@ -394,7 +415,8 @@ class DatabaseManager(object):
         logger.debug("entry. type: %s" % (type, ))
         rows = yield tornado.gen.Task(self.execute_cached_db_statement,
                                       self.GET_ROLE_ID,
-                                      (type, ))        
+                                      (type, ),
+                                      "GET_ROLE_ID")        
         yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
         logger.debug("yielding: %s" % (yield_value, ))        
         assert(yield_value is not None)
@@ -427,7 +449,8 @@ class DatabaseManager(object):
         logger.debug("entry. email: %s, user_id: %s, first_name: %s, last_name: %s, name: %s, locale: %s" % (email, user_id, first_name, last_name, name, locale))        
         cursor = yield tornado.gen.Task(self.db.execute,
                                         self.CREATE_AUTH_GOOGLE,
-                                        (email, user_id, first_name, last_name, name, locale))
+                                        (email, user_id, first_name, last_name, name, locale))        
+        self.expire_cache(email)                        
         callback(True)        
         
     @tornado.gen.engine
@@ -436,7 +459,8 @@ class DatabaseManager(object):
         logger.debug("entry. email: %s" % (email, ))
         rows = yield tornado.gen.Task(self.execute_cached_db_statement,
                                       self.GET_USER_ID_FROM_GOOGLE_EMAIL,
-                                      (email, ))
+                                      (email, ),
+                                      "GET_USER_ID_FROM_GOOGLE_EMAIL")
         yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
         logger.debug("yielding: %s" % (yield_value, ))        
         callback(yield_value)
@@ -453,6 +477,7 @@ class DatabaseManager(object):
         cursor = yield tornado.gen.Task(self.db.execute,
                                         self.CREATE_AUTH_FACEBOOK,
                                         (id, user_id, link, access_token, locale, first_name, last_name, name, picture))
+        self.expire_cache(id)
         callback(True)        
         
     @tornado.gen.engine
@@ -461,7 +486,8 @@ class DatabaseManager(object):
         logger.debug("entry. id: %s" % (id, ))
         rows = yield tornado.gen.Task(self.execute_cached_db_statement,
                                       self.GET_USER_ID_FROM_FACEBOOK_ID,
-                                      (id, ))
+                                      (id, ),
+                                      "GET_USER_ID_FROM_FACEBOOK_ID")
         yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
         logger.debug("yielding: %s" % (yield_value, ))        
         callback(yield_value)
@@ -477,6 +503,7 @@ class DatabaseManager(object):
         cursor = yield tornado.gen.Task(self.db.execute,
                                         self.CREATE_AUTH_TWITTER,
                                         (username, user_id, profile_image_url))
+        self.expire_cache(username)
         callback(True)        
         
     @tornado.gen.engine
@@ -485,7 +512,8 @@ class DatabaseManager(object):
         logger.debug("entry. username: %s" % (username, ))
         rows = yield tornado.gen.Task(self.execute_cached_db_statement,
                                       self.GET_USER_ID_FROM_TWITTER_USERNAME,
-                                      (username, ))
+                                      (username, ),
+                                      "GET_USER_ID_FROM_TWITTER_USERNAME")
         yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
         logger.debug("yielding: %s" % (yield_value, ))        
         callback(yield_value)
@@ -502,6 +530,7 @@ class DatabaseManager(object):
         cursor = yield tornado.gen.Task(self.db.execute,
                                         self.CREATE_AUTH_BROWSERID,
                                         (email, user_id))
+        self.expire_cache(email)
         callback(True)        
         
     @tornado.gen.engine
@@ -510,7 +539,8 @@ class DatabaseManager(object):
         logger.debug("entry. email: %s" % (email, ))
         rows = yield tornado.gen.Task(self.execute_cached_db_statement,
                                       self.GET_USER_ID_FROM_BROWSERID_EMAIL,
-                                      (email, ))
+                                      (email, ),
+                                      "GET_USER_ID_FROM_BROWSERID_EMAIL")
         yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
         logger.debug("yielding: %s" % (yield_value, ))        
         callback(yield_value)

@@ -12,20 +12,20 @@ import uuid
 import re
 
 from ListItem import ListItem
+from utilities import validate_base64_parameter, convert_uuid_string_to_base64, convert_base64_to_uuid_string
 
 class List(object):
-    REGEXP_BASE64 = re.compile("^[A-Za-z0-9-_=]+$")
     REQUIRED_KEYS = ["revision_id", "list_id", "contents", "datetime_edited"]   
     ALL_KEYS = ["revision_id", "list_id", "contents", "datetime_edited", "list_items"]    
     
     def __init__(self, revision_id, list_id, contents, datetime_edited):
         logger = logging.getLogger("List")
-        assert List.validate_base64_parameter(revision_id)
-        assert List.validate_base64_parameter(list_id)
+        assert validate_base64_parameter(revision_id)
+        assert validate_base64_parameter(list_id)
     
         self.revision_id = revision_id
         self.list_id = list_id
-        self.url_safe_list_id = List.convert_uuid_string_to_base64(self.list_id)
+        self.url_safe_list_id = convert_uuid_string_to_base64(self.list_id)
         self.contents = contents
         self.datetime_edited = datetime_edited
         
@@ -100,19 +100,3 @@ class List(object):
         decoded = dict(key_value_pairs)
         decoded["list_items"] = [elem.to_json() for elem in self.list_items]
         return tornado.escape.json_encode(decoded)
-        
-    @staticmethod
-    def validate_base64_parameter(parameter):
-        """ Given a string in variable 'parameter' confirm that it is a
-        URL safe base64 encoded string. """
-        return List.REGEXP_BASE64.search(parameter)
-        
-    @staticmethod
-    def convert_uuid_string_to_base64(uuid_string):
-        return base64.urlsafe_b64encode(uuid.UUID(uuid_string).bytes)
-        
-    @staticmethod
-    def convert_base64_to_uuid_string(base64_string):
-        logger = logging.getLogger("List.convert_base64_to_uuid_string")        
-        decoded = base64.urlsafe_b64decode(base64_string)        
-        return uuid.UUID(bytes=decoded).hex
