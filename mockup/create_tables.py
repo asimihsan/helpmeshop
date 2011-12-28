@@ -110,8 +110,9 @@ DROP_LIST_TABLE = """DROP TABLE IF EXISTS list;"""
 CREATE_LIST_TABLE = """CREATE TABLE list (revision_id UUID PRIMARY KEY,
                                           list_id UUID NOT NULL,
                                           helpmeshop_user_id UUID NOT NULL,
-                                          datetime_edited TIMESTAMP UNIQUE NOT NULL,
-                                          contents TEXT NOT NULL);"""
+                                          datetime_edited TIMESTAMP NOT NULL,
+                                          contents TEXT NOT NULL,
+                                          UNIQUE(list_id, datetime_edited));"""
 
 INSERT_STATEMENTS = [DROP_ROLE_TABLE,
                      CREATE_ROLE_TABLE,
