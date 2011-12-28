@@ -6,6 +6,10 @@
 #   a list which has already been modified by someone else, in which case
 #   you need to refresh your view of the list before continuing. For now,
 #   let's ignore this.
+#
+#   #!!AI All list modification operations must use POSTs. This will force
+#   Tornado to check XSRF. Of course, we could hack our own XSRF using GETs,
+#   but why? Just start POSTing. Besides, GETs are idempotent.
 # ----------------------------------------------------------------------------
 
 import logging

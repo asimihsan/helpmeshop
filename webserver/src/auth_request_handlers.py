@@ -60,6 +60,44 @@ class LogoutHandler(BasePageHandler):
         self.redirect("/")
 
 # ----------------------------------------------------------------------------
+#   RequestHandler that deals with API key authentication.
+#
+#   Note that this isn't a way of adding a new user. You must have already
+#   authorized using another authorization method, which gives you an
+#   API key, in order to log in.
+# ----------------------------------------------------------------------------
+class LoginApiHandler(BaseLoginHandler):    
+    @tornado.web.asynchronous
+    def get(self):
+        logger = logging.getLogger("LoginApiHandler.get")
+        logger.debug("entry")
+        data = {}
+        if self.current_user:
+            logging.debug("User is already authorized as user: %s." % (self.current_user, ))
+            self.redirect("/")
+        else:
+            data['user'] = None
+            data['title'] = "API key login (Help Me Shop)"
+            self.render("login_api.html", **data)
+        
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self):
+        logger = logging.getLogger("LoginApiHandler.post")        
+        logger.debug("entry.")        
+        api_secret_key = self.get_argument("api_secret_key")
+        logger.debug("api_secret_key: %s" % (api_secret_key, ))        
+        user_id = yield tornado.gen.Task(self.db.get_user_id_from_api_secret_key,
+                                         api_secret_key)
+        logger.debug("user_id: %s" % (user_id, ))
+        if not user_id:
+            # User does not exist.
+            raise tornado.web.HTTPError(403, "API key not authorized.")                    
+        self.set_secure_cookie_and_authorization(user_id, "api") 
+        self.redirect("/")
+        self.finish()
+        
+# ----------------------------------------------------------------------------
 #   RequestHandler that deals with Mozilla BrowserID authentication.
 # ----------------------------------------------------------------------------
 class LoginBrowserIDHandler(BaseLoginHandler):

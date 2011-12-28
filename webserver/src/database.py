@@ -454,6 +454,11 @@ class DatabaseManager(object):
     
     # ------------------------------------------------------------------------
     #   API authentication specific functions.
+    #
+    #   We don't cache the results of these queries because this is open
+    #   to the public. A simple DDOS would be to hammer the server with
+    #   a brute force attack, which would fill up the redis database
+    #   cache with all the results of the empty queries.
     # ------------------------------------------------------------------------    
     @tornado.gen.engine
     def create_auth_api(self, api_secret_key, user_id, callback):
@@ -474,10 +479,9 @@ class DatabaseManager(object):
     def get_user_id_from_api_secret_key(self, api_secret_key, callback):
         logger = logging.getLogger("DatabaseManager.get_user_id_from_api_secret_key")
         logger.debug("entry. api_secret_key: %s" % (api_secret_key, ))
-        rows = yield tornado.gen.Task(self.execute_cached_db_statement,
+        rows = yield tornado.gen.Task(self.db.execute,
                                       self.GET_USER_ID_FROM_API_SECRET_KEY,
-                                      (email, ),
-                                      "GET_USER_ID_FROM_API_SECRET_KEY")
+                                      (api_secret_key, ))
         yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
         logger.debug("yielding: %s" % (yield_value, ))        
         callback(yield_value)

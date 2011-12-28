@@ -1,0 +1,31 @@
+{% include fragment_generic_header.html %}
+
+    <div class="container">
+        <div class="content">
+            <div class="page-header">                                
+                <h1>Help Me Shop<br />
+                <small>Share your shopping lists, help friends buy stuff off them!</small>                
+                </h1>
+            </div>
+        <div class="row">
+            <div class="span14">
+                <h2>Login using your API key</h2>
+                <form method="post" action="/login/api/">                       
+                    {% raw xsrf_form_html() %}                    
+                    <fieldset>
+                        <div class="clearfix">
+                            <label for="api_secret_key">API key</label>
+                            <div class="input">
+                                <input id="api_secret_key" class="xlarge" type="text" size="30" name="api_secret_key">
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <input class="btn primary" type="submit" value="Login">
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </div>    
+
+{% include fragment_generic_footer.html %}
