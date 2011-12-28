@@ -93,7 +93,7 @@ def install_bare_essentials():
               use_sudo = True)    
     sudo("apt-get update")
     sudo("yes yes | apt-get upgrade")
-    sudo("yes yes | apt-get install git mercurial build-essential unzip python-software-properties ruby curl python-dev htop vim vim-nox dtach")
+    sudo("yes yes | apt-get install git mercurial build-essential unzip python-software-properties ruby curl python-dev htop vim vim-nox dtach dos2unix")
 
 def setup_timezone():
     logger = logging.getLogger("%s.setup_timezone" % (APP_NAME, ))
@@ -294,6 +294,15 @@ def install_haproxy():
     with cd("~"):
         run("rm -rf haproxy*")
         
+def setup_haproxy():
+    logger = logging.getLogger("%s.setup_haproxy" % (APP_NAME, ))
+    logger.debug("entry.")
+    
+    banner_filepath = os.path.join(os.path.dirname(__file__), "haproxyd")
+    assert(os.path.isfile(banner_filepath))
+    put(banner_filepath, "/etc/init.d/haproxyd", use_sudo=True)
+    sudo("chmod +x /etc/init.d/haproxyd")
+        
 def install_ack():
     logger = logging.getLogger("%s.install_ack" % (APP_NAME, ))
     logger.debug("entry.")    
@@ -486,13 +495,14 @@ def main():
                          #install_erlang,                         
                          #install_redis,
                          #init_redis,
-                         #install_memcached,
+                         #install_memcached,                         
                          #install_haproxy,
+                         setup_haproxy,
                          #install_ack,
                          #install_pypy,
                          #setup_python,
                          #setup_ntp,
-                         harden,
+                         #harden,
                          #install_postgresql,
                          #init_postgresql,
                          #checkout_code,
