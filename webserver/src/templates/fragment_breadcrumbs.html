@@ -4,7 +4,15 @@
             <a href="/">Home</a>
             <span class="divider">/</span>
         </li>
-        <li class="active">List of lists</li>
+        {% if globals().get('list_obj', None) %}        
+            <li>
+                <a href="/">List of lists</a>
+                <span class="divider">/</span>
+            </li>
+            <li class="active">{{ list_obj.get_title() }}</li>
+        {% else %}
+            <li class="active">List of lists</li>    
+        {% end %}        
     </ul>
 </div>
    
