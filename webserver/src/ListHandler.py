@@ -15,8 +15,8 @@ import logging
 import base64
 
 from model.List import List
-
 from base_request_handlers import BasePageHandler
+from utilities import validate_base64_parameter, convert_uuid_string_to_base64, convert_base64_to_uuid_string, normalize_uuid_string
 
 class ListCreateHandler(BasePageHandler):
     @tornado.web.asynchronous
@@ -33,6 +33,15 @@ class ListCreateHandler(BasePageHandler):
                                              self.current_user,
                                              tornado.escape.json_encode(new_list_contents))
         logger.debug("new_list_id: %s" % (new_list_id, ))
+        
+        # --------------------------------------------------------------------
+        # We've just created a list. Hence, any database caching we've done
+        # about the user's view of their own lists is invalid.
+        # --------------------------------------------------------------------
+        normalized_user_id = normalize_uuid_string(self.current_user)
+        self.db.expire_cache(normalized_user_id)
+        # --------------------------------------------------------------------        
+        
         self.redirect("/")
 
 # ----------------------------------------------------------------------------
@@ -65,9 +74,9 @@ class ListCreateItemHandler(BasePageHandler):
         if not self.current_user:
             logging.debug("User is not authorized.")
             raise tornado.web.HTTPError(403)
-        if not List.validate_base64_parameter(list_id_base64):
+        if not validate_base64_parameter(list_id_base64):
             raise tornado.web.HTTPError(400, "List identifier is malformed.")
-        list_id = List.convert_base64_to_uuid_string(str(list_id_base64))                
+        list_id = convert_base64_to_uuid_string(str(list_id_base64))                
         logger.debug("list_id: %s" % (list_id, ))
         # --------------------------------------------------------------------
         
@@ -96,15 +105,15 @@ class ListCreateItemHandler(BasePageHandler):
         
         # --------------------------------------------------------------------
         #   Add a new list item to the list and then add it to the database.        
-        # --------------------------------------------------------------------
-        
+        # --------------------------------------------------------------------        
         # Everything except this line belongs in a base class.
         list_obj.create_item()        
+        
         rc = yield tornado.gen.Task(self.db.update_list,
                                     list_obj.list_id,
                                     self.current_user,
                                     list_obj.contents)
-        logger.debug("update_list rc: %s" % (rc, ))      
+        logger.debug("update_list rc: %s" % (rc, ))              
         if rc != True:
             raise tornado.web.HTTPError(500, "Failed to create a new item in the list.")
         # --------------------------------------------------------------------
@@ -137,14 +146,26 @@ class ListDeleteHandler(BasePageHandler):
         if not self.current_user:
             logging.debug("User is not authorized.")
             raise tornado.web.HTTPError(403)        
-        if not List.validate_base64_parameter(list_id_base64):
+        if not validate_base64_parameter(list_id_base64):
             raise tornado.web.HTTPError(400, "List identifier is malformed.")
-        list_id = List.convert_base64_to_uuid_string(str(list_id_base64))        
+        list_id = convert_base64_to_uuid_string(str(list_id_base64))        
         logger.debug("list_id: %s" % (list_id, ))
         rc = yield tornado.gen.Task(self.db.delete_list,                                
                                     list_id,
                                     self.current_user)
         logger.debug("rc: %s" % (rc, ))
+        
+        # --------------------------------------------------------------------
+        # We've just attempted to modify the database. Delete
+        # all the database cache elements related to either
+        # the list or the user.
+        # --------------------------------------------------------------------
+        normalized_list_id = normalize_uuid_string(list_id)        
+        self.db.expire_cache(normalized_list_id)        
+        normalized_user_id = normalize_uuid_string(self.current_user)
+        self.db.expire_cache(normalized_user_id)
+        # --------------------------------------------------------------------
+        
         if rc != True:
             raise tornado.web.HTTPError(400, "Failed to delete the list.")
         self.redirect("/")    
@@ -159,9 +180,9 @@ class ListReadHandler(BasePageHandler):
     def get(self, list_id_base64): 
         logger = logging.getLogger("ListDisplayHandler.get")
         logger.debug("entry. list_id_base64: %s" % (list_id_base64, ))
-        if not List.validate_base64_parameter(list_id_base64):
+        if not validate_base64_parameter(list_id_base64):
             raise tornado.web.HTTPError(400, "List identifier is malformed.")            
-        list_id = List.convert_base64_to_uuid_string(str(list_id_base64))        
+        list_id = convert_base64_to_uuid_string(str(list_id_base64))        
         logger.debug("list_id: %s" % (list_id, ))
         list_obj = yield tornado.gen.Task(self.db.read_list,                                
                                           list_id)
