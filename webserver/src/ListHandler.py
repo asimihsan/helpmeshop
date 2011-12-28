@@ -33,15 +33,6 @@ class ListCreateHandler(BasePageHandler):
                                              self.current_user,
                                              tornado.escape.json_encode(new_list_contents))
         logger.debug("new_list_id: %s" % (new_list_id, ))
-        
-        # --------------------------------------------------------------------
-        # We've just created a list. Hence, any database caching we've done
-        # about the user's view of their own lists is invalid.
-        # --------------------------------------------------------------------
-        normalized_user_id = normalize_uuid_string(self.current_user)
-        self.db.expire_cache(normalized_user_id)
-        # --------------------------------------------------------------------        
-        
         self.redirect("/")
 
 # ----------------------------------------------------------------------------
@@ -153,19 +144,7 @@ class ListDeleteHandler(BasePageHandler):
         rc = yield tornado.gen.Task(self.db.delete_list,                                
                                     list_id,
                                     self.current_user)
-        logger.debug("rc: %s" % (rc, ))
-        
-        # --------------------------------------------------------------------
-        # We've just attempted to modify the database. Delete
-        # all the database cache elements related to either
-        # the list or the user.
-        # --------------------------------------------------------------------
-        normalized_list_id = normalize_uuid_string(list_id)        
-        self.db.expire_cache(normalized_list_id)        
-        normalized_user_id = normalize_uuid_string(self.current_user)
-        self.db.expire_cache(normalized_user_id)
-        # --------------------------------------------------------------------
-        
+        logger.debug("rc: %s" % (rc, ))        
         if rc != True:
             raise tornado.web.HTTPError(400, "Failed to delete the list.")
         self.redirect("/")    
