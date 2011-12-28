@@ -8,11 +8,11 @@
 #   let's ignore this.
 # ----------------------------------------------------------------------------
 
-import tornado
-import tornado.escape
-
 import logging
 import base64
+import pprint
+import tornado
+import tornado.escape
 
 from model.List import List
 from base_request_handlers import BasePageHandler
@@ -169,7 +169,6 @@ class ListReadHandler(BasePageHandler):
             raise tornado.web.HTTPError(404)
         data = {}
         data['list_obj'] = list_obj
-        data['user'] = self.current_user
-        
+        data['user'] = self.current_user                
         self.render("read_list.html", **data)     
     

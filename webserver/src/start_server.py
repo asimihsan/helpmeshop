@@ -99,22 +99,7 @@ class MainHandler(BasePageHandler):
                 setattr(list_obj, "title", contents_decoded["title"])
             logger.debug("lists:\n%s" % (pprint.pformat(lists), ))        
         data['lists'] = lists 
-        #li1 = ListItem("id1", "title1", "url1", "notes1")
-        #li2 = ListItem("id2", "title2", "url1")
-        #li3 = ListItem("id3", "title3")
-        #l1 = List("list id1", "list title1", [li1, li2, li3])
-        #lists = [l1, l1]        
-        #data['lists'] = lists 
-        
-        #logging.debug("li1:\n%s" % (pprint.pformat(li1), ))
-        #logging.debug("li2:\n%s" % (pprint.pformat(li2), ))
-        #logging.debug("li3:\n%s" % (pprint.pformat(li3), ))
-        #logging.debug("l1:\n%s" % (pprint.pformat(l1), ))
-        
-        #to_json = l1.to_json()
-        #logging.debug("l1 to json:\n%s" % (to_json, ))
-        #from_json = List.from_json(to_json)
-        #logging.debug("l1 back to object:\n%s" % (from_json, ))        
+        data['title'] = "Help Me Shop"      
         
         self.render("index.html", **data)            
 

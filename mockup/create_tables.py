@@ -105,7 +105,13 @@ CREATE_AUTH_BROWSERID_TABLE = """CREATE TABLE auth_browserid (
     email TEXT PRIMARY KEY,
     helpmeshop_user_id UUID UNIQUE NOT NULL);"""
     
-# list
+# API authentication details
+DROP_AUTH_API_TABLE = """DROP TABLE IF EXISTS auth_api;"""
+CREATE_AUTH_API_TABLE = """CREATE TABLE auth_api (
+    api_secret_key TEXT PRIMARY KEY,
+    helpmeshop_user_id UUID UNIQUE NOT NULL);"""
+    
+# Lists.
 DROP_LIST_TABLE = """DROP TABLE IF EXISTS list;"""
 CREATE_LIST_TABLE = """CREATE TABLE list (revision_id UUID PRIMARY KEY,
                                           list_id UUID NOT NULL,
@@ -126,6 +132,8 @@ INSERT_STATEMENTS = [DROP_ROLE_TABLE,
                      CREATE_AUTH_TWITTER_TABLE,                     
                      DROP_AUTH_BROWSERID_TABLE,
                      CREATE_AUTH_BROWSERID_TABLE,
+                     DROP_AUTH_API_TABLE,
+                     CREATE_AUTH_API_TABLE,
                      DROP_LIST_TABLE,
                      CREATE_LIST_TABLE]
 # ----------------------------------------------------------------------
@@ -137,11 +145,6 @@ INSERT_STATEMENTS = [DROP_ROLE_TABLE,
 # http://www.postgresql.org/docs/8.2/static/indexes-unique.html
 # ----------------------------------------------------------------------
 INDEX_LIST_ID_ON_LIST = """CREATE INDEX list_id_on_list on list(list_id);"""
-INDEX_USER_ID_ON_AUTH_GOOGLE = """CREATE INDEX user_id_on_auth_google on auth_google(user_id);"""
-INDEX_USER_ID_ON_AUTH_FACEBOOK = """CREATE INDEX user_id_on_auth_facebook on auth_facebook(user_id);"""
-INDEX_USER_ID_ON_AUTH_TWITTER = """CREATE INDEX user_id_on_auth_twitter on auth_twitter(user_id);"""
-INDEX_USER_ID_ON_AUTH_BROWSERID = """CREATE INDEX user_id_on_auth_browserid on auth_browserid(user_id);"""
-
 INDEX_STATEMENTS = [INDEX_LIST_ID_ON_LIST]
 # ----------------------------------------------------------------------
 

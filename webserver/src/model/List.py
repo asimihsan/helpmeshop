@@ -41,6 +41,14 @@ class List(object):
                     if list_item:                        
                         self.list_items.append(list_item)
             
+    def get_title(self):
+        try:
+            contents_decoded = tornado.escape.json_decode(self.contents)
+        except:
+            logger.exception("JSON decoding exception.")
+            return None
+        return contents_decoded.get("title", "")            
+            
     def create_item(self, title=None, url=None, notes=None):
         if len(self.list_items) == 0:
             new_ident = "1"
