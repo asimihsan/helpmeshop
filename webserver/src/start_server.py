@@ -23,6 +23,7 @@ from auth_request_handlers import LoginGoogleHandler
 from auth_request_handlers import LoginFacebookHandler
 from auth_request_handlers import LoginTwitterHandler
 from auth_request_handlers import LoginBrowserIDHandler
+from auth_request_handlers import LoginApiHandler
 from auth_request_handlers import LogoutHandler
 
 from ListHandler import ListReadHandler
@@ -107,6 +108,7 @@ class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r"/", MainHandler),
+            (r"/login/api/", LoginApiHandler),
             (r"/login/google/", LoginGoogleHandler),
             (r"/login/facebook/", LoginFacebookHandler),
             (r"/login/twitter/", LoginTwitterHandler),

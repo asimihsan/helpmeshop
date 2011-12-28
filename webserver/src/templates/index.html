@@ -10,7 +10,7 @@
             </div>
             {% end %}
         <div class="row">
-            <div class="span16">
+            <div class="span14">
                 {% if user %}
                     {% include fragment_breadcrumbs.html %}
                     <p>I think you are: {{ user }}</p>
@@ -23,6 +23,7 @@
                             <li><a href="/login/facebook/">Login using Facebook</a></li>
                             <li><a href="/login/twitter/">Login using Twitter</a></li>
                             <li><a href="#" id="browserid">Login using BrowserID</a></li>
+                            <li><a href="/login/api/">Login using an API key</a></li>
                         </ul>
                     </p>
                 {% end %}

@@ -39,24 +39,6 @@ class BaseHandler(tornado.web.RequestHandler):
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
-#   Base login handler.
-# ----------------------------------------------------------------------------
-class BaseLoginHandler(BaseHandler):
-    def set_secure_cookie_and_authorization(self, user_id, authorization_type):
-        logger = logging.getLogger("BaseLoginHandler.set_secure_cookie_and_authorization")
-        logger.debug("entry. user_id: %s, authorization_type: %s" % (user_id, authorization_type))
-        self.set_secure_cookie('user', user_id)        
-        if not self.user_session.is_user_authorized(user_id):
-            logger.debug("User is not currently authorized.") 
-            self.user_session.authorize_user(user_id, authorization_type)
-        else:
-            # If the user is already authorized then just re-set their
-            # authorization expiry time.
-            logger.debug("User is already authorized.")
-            self.user_session.set_user_expiry(user_id)
-# ----------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------
 #   Base page handler.
 # ----------------------------------------------------------------------------
 class BasePageHandler(BaseHandler):        
@@ -73,4 +55,24 @@ class BasePageHandler(BaseHandler):
             return None
         return user_id        
 # ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+#   Base login handler.
+# ----------------------------------------------------------------------------
+class BaseLoginHandler(BasePageHandler):
+    def set_secure_cookie_and_authorization(self, user_id, authorization_type):
+        logger = logging.getLogger("BaseLoginHandler.set_secure_cookie_and_authorization")
+        logger.debug("entry. user_id: %s, authorization_type: %s" % (user_id, authorization_type))
+        self.set_secure_cookie('user', user_id)        
+        if not self.user_session.is_user_authorized(user_id):
+            logger.debug("User is not currently authorized.") 
+            self.user_session.authorize_user(user_id, authorization_type)
+        else:
+            # If the user is already authorized then just re-set their
+            # authorization expiry time.
+            logger.debug("User is already authorized.")
+            self.user_session.set_user_expiry(user_id)
+# ----------------------------------------------------------------------------
+
+
 
