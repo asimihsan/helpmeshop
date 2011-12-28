@@ -12,7 +12,7 @@
         <div class="row">
             <div class="span16">
                 {% if user %}
-                    {% include breadcrumbs.html %}
+                    {% include fragment_breadcrumbs.html %}
                     <p>I think you are: {{ user }}</p>
                     {% include fragment_lists.html %}
                 {% else %}
