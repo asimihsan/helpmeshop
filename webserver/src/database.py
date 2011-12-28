@@ -83,6 +83,9 @@ class DatabaseManager(object):
     GET_USER_ID_FROM_BROWSERID_EMAIL = """SELECT helpmeshop_user_id FROM auth_browserid WHERE email = %s;"""
     CREATE_AUTH_BROWSERID = """INSERT INTO auth_browserid (email, helpmeshop_user_id) VALUES (%s, %s);"""   
     
+    GET_USER_ID_FROM_API_SECRET_KEY = """SELECT helpmeshop_user_id FROM auth_api WHERE api_secret_key = %s;"""
+    CREATE_AUTH_API = """INSERT INTO auth_api (api_secret_key, helpmeshop_user_id) VALUES (%s, %s);"""   
+    
     GET_ROLE_ID = """SELECT role_id FROM role WHERE role_name = %s;"""    
     CREATE_USER_AND_RETURN_USER_ID = """INSERT INTO helpmeshop_user (helpmeshop_user_id, role_id)
                                         VALUES (uuid_generate_v4(), %s)
@@ -355,10 +358,11 @@ class DatabaseManager(object):
         normalized_user_id = normalize_uuid_string(user_id)
         self.expire_cache(normalized_user_id)                        
         
-        # cursor.rowcount will indicate how many rows were deleted. If it isn't
-        # 1 something went wrong, e.g. user is trying to delete a list they didn't
-        # create.
-        if cursor.rowcount != 1:        
+        # cursor.rowcount will indicate how many rows were deleted. If it's 0
+        # we didn't delete anything, which is unexpected. It can be any other
+        # positive because there could be many revisions of a given list.
+        logger.debug("cursor.rowcount: %s" % (cursor.rowcount, ))
+        if cursor.rowcount == 0:        
             rc = False
         else:
             rc = True            
@@ -437,8 +441,46 @@ class DatabaseManager(object):
         new_user_id = self.extract_one_value_from_one_or_zero_rows(cursor)
         logger.debug("new_user_id: %s" % (new_user_id, ))  
         assert(new_user_id is not None)
+        
+        api_secret_key = base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
+        rc = yield tornado.gen.Task(self.create_auth_api,
+                                    api_secret_key,
+                                    new_user_id)
+        logger.debug("rc from API authentication query: %s" % (rc, ))
+        assert(rc == True)
+        
         callback(new_user_id)
     # ------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------
+    #   API authentication specific functions.
+    # ------------------------------------------------------------------------    
+    @tornado.gen.engine
+    def create_auth_api(self, api_secret_key, user_id, callback):
+        logger = logging.getLogger("DatabaseManager.create_auth_api")
+        logger.debug("entry. api_secret_key: %s, user_id: %s" % (api_secret_key, user_id))
+        cursor = yield tornado.gen.Task(self.db.execute,
+                                        self.CREATE_AUTH_API,
+                                        (api_secret_key, user_id))
+        self.expire_cache(api_secret_key)
+        if cursor.rowcount == 0:
+            return_value = False
+        else:
+            return_value = True
+        logger.debug("returning: %s" % (return_value, ))
+        callback(return_value)        
+        
+    @tornado.gen.engine
+    def get_user_id_from_api_secret_key(self, api_secret_key, callback):
+        logger = logging.getLogger("DatabaseManager.get_user_id_from_api_secret_key")
+        logger.debug("entry. api_secret_key: %s" % (api_secret_key, ))
+        rows = yield tornado.gen.Task(self.execute_cached_db_statement,
+                                      self.GET_USER_ID_FROM_API_SECRET_KEY,
+                                      (email, ),
+                                      "GET_USER_ID_FROM_API_SECRET_KEY")
+        yield_value = self.extract_one_value_from_one_or_zero_rows(rows)
+        logger.debug("yielding: %s" % (yield_value, ))        
+        callback(yield_value)
         
     # ------------------------------------------------------------------------
     #   Google authentication specific functions.
@@ -451,7 +493,12 @@ class DatabaseManager(object):
                                         self.CREATE_AUTH_GOOGLE,
                                         (email, user_id, first_name, last_name, name, locale))        
         self.expire_cache(email)                        
-        callback(True)        
+        if cursor.rowcount == 0:
+            return_value = False
+        else:
+            return_value = True
+        logger.debug("returning: %s" % (return_value, ))
+        callback(return_value)        
         
     @tornado.gen.engine
     def get_user_id_from_google_email(self, email, callback):
@@ -478,7 +525,12 @@ class DatabaseManager(object):
                                         self.CREATE_AUTH_FACEBOOK,
                                         (id, user_id, link, access_token, locale, first_name, last_name, name, picture))
         self.expire_cache(id)
-        callback(True)        
+        if cursor.rowcount == 0:
+            return_value = False
+        else:
+            return_value = True
+        logger.debug("returning: %s" % (return_value, ))
+        callback(return_value)        
         
     @tornado.gen.engine
     def get_user_id_from_facebook_id(self, id, callback):
@@ -504,7 +556,12 @@ class DatabaseManager(object):
                                         self.CREATE_AUTH_TWITTER,
                                         (username, user_id, profile_image_url))
         self.expire_cache(username)
-        callback(True)        
+        if cursor.rowcount == 0:
+            return_value = False
+        else:
+            return_value = True
+        logger.debug("returning: %s" % (return_value, ))
+        callback(return_value)        
         
     @tornado.gen.engine
     def get_user_id_from_twitter_username(self, username, callback):
@@ -531,7 +588,12 @@ class DatabaseManager(object):
                                         self.CREATE_AUTH_BROWSERID,
                                         (email, user_id))
         self.expire_cache(email)
-        callback(True)        
+        if cursor.rowcount == 0:
+            return_value = False
+        else:
+            return_value = True
+        logger.debug("returning: %s" % (return_value, ))
+        callback(return_value)        
         
     @tornado.gen.engine
     def get_user_id_from_browserid_email(self, email, callback):
