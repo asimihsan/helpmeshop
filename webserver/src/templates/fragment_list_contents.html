@@ -1,6 +1,6 @@
 <div class="span14">    
     {% set list_items = list_obj.list_items %}
-    <h2>{{ title }}</h2>
+    <h2>{{ list_obj.get_title() }}</h2>
     
     {% if len(list_items) == 0 %}
         <p>This list is empty! Use the button below add an item.</p>
