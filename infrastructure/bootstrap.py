@@ -301,7 +301,14 @@ def setup_haproxy():
     banner_filepath = os.path.join(os.path.dirname(__file__), "haproxyd")
     assert(os.path.isfile(banner_filepath))
     put(banner_filepath, "/etc/init.d/haproxyd", use_sudo=True)
-    sudo("chmod +x /etc/init.d/haproxyd")
+    sudo("chmod +x /etc/init.d/haproxyd")    
+    sudo("update-rc.d -f haproxyd defaults")        
+    
+        
+def start_haproxy():
+    logger = logging.getLogger("%s.setup_haproxy" % (APP_NAME, ))
+    logger.debug("entry.")
+    sudo("/etc/init.d/haproxyd start")
         
 def install_ack():
     logger = logging.getLogger("%s.install_ack" % (APP_NAME, ))
@@ -497,7 +504,7 @@ def main():
                          #init_redis,
                          #install_memcached,                         
                          #install_haproxy,
-                         setup_haproxy,
+                         #setup_haproxy,
                          #install_ack,
                          #install_pypy,
                          #setup_python,
@@ -507,7 +514,8 @@ def main():
                          #init_postgresql,
                          #checkout_code,
                          #setup_bash_profile,
-                         #setup_ssl
+                         #setup_ssl,
+                         #start_haproxy,
                         ]
     # ------------------------------------------------------------------
     logger.info("executing the following functions:\n%s" % (pprint.pformat(functions_to_call), ))
