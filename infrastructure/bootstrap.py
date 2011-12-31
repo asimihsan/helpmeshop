@@ -40,7 +40,7 @@ from boto.ec2.connection import EC2Connection
 from fabric.api import settings
 from fabric.contrib.console import confirm
 from fabric.operations import sudo, run, put
-from fabric.contrib.files import contains, append, uncomment, sed, exists
+from fabric.contrib.files import contains, append, uncomment, comment, sed, exists
 from fabric.context_managers import cd, path
 import fabric.network
 import colorama
@@ -65,13 +65,15 @@ logger = logging.getLogger(APP_NAME)
 # ----------------------------------------------------------------------
 #   Constants to change.
 # ----------------------------------------------------------------------
+REMOTE_IP_ADDRESS = "192.168.1.104"
+REMOTE_HOSTNAME = "katara"
 REMOTE_USERNAME = "ubuntu"
 
 # Set either REMOTE_PASSWORD or KEY_FILENAME, where the latter is a path
 # to an authorized RSA keyfile.  KEY_FILENAME is preferred.  Set whatever
 # you don't want to use to None.
-REMOTE_PASSWORD = "kleafEgcasp6"
-# REMOTE_PASSWORD = "password" 
+#REMOTE_PASSWORD = "kleafEgcasp6"
+REMOTE_PASSWORD = "password" 
 KEY_FILENAME = r"C:\Users\ai\Documents\puttykey-4096.pub"
 OPENSSH_AUTHORIZED_KEY_FILE = r"C:\Users\ai\Documents\puttykey-4096-openssh.pub"
 # ----------------------------------------------------------------------
@@ -176,7 +178,7 @@ def init_redis():
     put(redis_conf_filepath, "/usr/local/redis/redis.conf", use_sudo=True)
     sudo("chown redis:redis /usr/local/redis/redis.conf")
     
-    redis_initd_script = os.path.join(os.path.dirname(__file__), "init-deb.sh")
+    redis_initd_script = os.path.join(os.path.dirname(__file__), "init-deb-redi.sh")
     assert(os.path.isfile(redis_initd_script))
     put(redis_initd_script, "/etc/init.d/redis", use_sudo=True)
     sudo("chmod +x /etc/init.d/redis")
@@ -454,8 +456,8 @@ def setup_ssl():
         put(filename, os.path.join("/home/ubuntu/myCA/", filename))
 
     with cd("~/myCA"):
-        run("echo '01' > serial")
-        run("touch index.txt")        
+        #run("echo '01' > serial")
+        #run("touch index.txt")        
         
         run("export OPENSSL_CONF=~/myCA/caconfig.cnf; openssl req -x509 -newkey rsa:2048 -out cacert.pem -outform PEM -days 1825")
         run("openssl x509 -in cacert.pem -out cacert.crt")        
@@ -469,7 +471,59 @@ def setup_ssl():
         run("openssl x509 -in cacert.pem -out cacert.crt")
         run("openssl x509 -in server_crt.pem -out server_crt.crt")
         #run("openssl x509 -in server_key.pem -out server_key.crt")
+
+def setup_hostname():
+    """ Reference:
+        http://library.linode.com/getting-started#sph_set-the-hostname
+    """
+    logger = logging.getLogger("%s.setup_hostname" % (APP_NAME, ))
+    logger.debug("entry.")               
+    sudo("echo %s > /etc/hostname" % (REMOTE_HOSTNAME, ))
+    sudo("hostname -F /etc/hostname")
+    if exists("/etc/default/dhcpcd",
+              use_sudo = True):
+        comment("/etc/default/dhcpcd",
+                "SET_HOSTNAME.*=.*yes",
+                use_sudo = True)
+    #!!AI Add 127.0.0.1 <hostname> to /etc/hosts
+    #!!AI Add <public IP address> <hostname> to /etc/hosts
+        
+def install_nginx():
+    logger = logging.getLogger("%s.install_nginx" % (APP_NAME, ))
+    logger.debug("entry.")               
+    sudo("yes yes | apt-get install libpcre3-dev build-essential libssl-dev zlib1g zlib1g-dev")
+    with cd("~"):
+        run("rm -rf nginx-1.1.12*")
+        run("wget http://nginx.org/download/nginx-1.1.12.tar.gz")
+        run("tar xvf nginx-1.1.12.tar.gz")
+    with cd("~/nginx-1.1.12"):
+        cc_flags = ["-O2", "-fstack-protector-all", "-fexceptions", "-D_FORTIFY_SOURCE=2", "--param=ssp-buffer-size=4"]
+        run("./configure --user=nginx --group=nginx --with-http_ssl_module --with-pcre-jit --with-cc-opt=\"%s\"" % (" ".join(cc_flags), ))
+        run("make")
+        sudo("make install")
+    with cd("~"):
+        run("rm -rf nginx-1.1.12*")
+    sudo("adduser --system --no-create-home --disabled-login --disabled-password --group nginx")    
     
+def setup_nginx():
+    logger = logging.getLogger("%s.setup_nginx" % (APP_NAME, ))
+    logger.debug("entry.")               
+    
+    sudo("mkdir -p /usr/local/nginx/logs")
+    sudo("touch /usr/local/nginx/logs/error.log")
+    sudo("chown -R nginx:nginx /usr/local/nginx")
+    
+    #nginx_conf_filepath = os.path.join(os.path.dirname(__file__), "nginx.conf")
+    #assert(os.path.isfile(nginx_conf_filepath))
+    #put(redis_conf_filepath, "/usr/local/nginx/redis.conf", use_sudo=True)
+    #sudo("chown nginx:nginx /usr/local/nginx/nginx.conf")
+    
+    nginx_initd_script = os.path.join(os.path.dirname(__file__), "init-deb-nginx.sh")
+    assert(os.path.isfile(nginx_initd_script))
+    put(nginx_initd_script, "/etc/init.d/nginx", use_sudo=True)
+    sudo("chmod +x /etc/init.d/nginx")
+    sudo("update-rc.d -f nginx defaults")    
+        
 def call_fabric_function(function, remote_host, *args, **kwds):
     if KEY_FILENAME is not None:
         with settings(host_string=remote_host,
@@ -515,6 +569,9 @@ def main():
                          #checkout_code,
                          #setup_bash_profile,
                          #setup_ssl,
+                         #setup_hostname,
+                         #install_nginx,
+                         setup_nginx,
                          #start_haproxy,
                         ]
     # ------------------------------------------------------------------
