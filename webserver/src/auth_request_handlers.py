@@ -15,6 +15,7 @@ import os
 import sys
 import logging
 import pprint
+import urlparse
 
 from base_request_handlers import BasePageHandler
 from base_request_handlers import BaseLoginHandler
@@ -104,7 +105,10 @@ class LoginBrowserIDHandler(BaseLoginHandler):
     @tornado.web.asynchronous
     def post(self):
         logger = logging.getLogger("LoginBrowserIDHandler.get")
-        logger.debug("entry")     
+        logger.debug("entry")             
+        logger.debug("request: \n%s" % (pprint.pformat(self.request), ))
+        
+        adjust_request_host_to_referer(self.request)
         
         assertion = self.get_argument('assertion')
         domain = self.request.host
@@ -114,6 +118,7 @@ class LoginBrowserIDHandler(BaseLoginHandler):
         
         http_client = tornado.httpclient.AsyncHTTPClient()
         url = 'https://browserid.org/verify' 
+        
         response = http_client.fetch(url,
                                      method='POST',
                                      body=urllib.urlencode(data),
@@ -174,6 +179,7 @@ class LoginTwitterHandler(BaseLoginHandler, tornado.auth.TwitterMixin):
         if oauth_token:
             self.get_authenticated_user(self.async_callback(self._on_auth))
             return
+        adjust_request_host_to_referer(self.request)
         self.authorize_redirect()
 
     @tornado.gen.engine
@@ -238,6 +244,7 @@ class LoginFacebookHandler(BaseLoginHandler, tornado.auth.FacebookGraphMixin):
                 code=code,
                 callback=self.async_callback(self._on_login))
             return
+        adjust_request_host_to_referer(self.request)
         self.authorize_redirect(redirect_uri=redirect_uri,
                                 client_id=options.facebook_app_id,
                                 extra_params={"scope": "read_stream,offline_access"})
@@ -319,7 +326,7 @@ class LoginGoogleHandler(BaseLoginHandler, tornado.auth.GoogleMixin):
     @tornado.web.asynchronous
     def get(self):
         logger = logging.getLogger("LoginGoogleHandler.get")
-        logger.debug("entry")
+        logger.debug("entry. request: \n%s" % (pprint.pformat(self.request), ))                
         
         # If openid_mode is None we have not authenticated yet.
         # If openid_mode is cancel the user has refused to
@@ -332,7 +339,9 @@ class LoginGoogleHandler(BaseLoginHandler, tornado.auth.GoogleMixin):
         
         if openid_mode:                        
             self.get_authenticated_user(self.async_callback(self._on_auth))
-            return
+            return       
+        
+        adjust_request_host_to_referer(self.request)        
         self.authenticate_redirect()
     
     @tornado.gen.engine    
@@ -372,3 +381,27 @@ class LoginGoogleHandler(BaseLoginHandler, tornado.auth.GoogleMixin):
         self.set_secure_cookie_and_authorization(user_id, "google")
         self.redirect("/")
 # ----------------------------------------------------------------------------
+
+def adjust_request_host_to_referer(request):
+    # --------------------------------------------------------------------
+    #   We need to adjust the request's host field. This is because
+    #   the architecture is:
+    #       web client -> nginx -> haproxy -> tornado -> auth. server
+    #   tornado thinks the request came from haproxy, which is
+    #   on 127.0.0.1. We need to adjust the request to make it come from
+    #   the public IP of the server, which nginx has passed on in the
+    #   referer field.
+    # --------------------------------------------------------------------
+    logger = logging.getLogger("adjust_request_host_to_referer")
+    logger.debug("entry.")
+    referer = request.headers["Referer"]        
+    if referer:
+        scheme = request.headers.get("X-Scheme", "http")
+        if scheme == "http":
+            port = 80
+        else:
+            port = 443
+        new_host = "%s:%s" % (urlparse.urlparse(referer).netloc, port)
+        logger.debug("Changed request host from %s to %s" % (request.host, new_host))
+        request.host = new_host
+    # --------------------------------------------------------------------
