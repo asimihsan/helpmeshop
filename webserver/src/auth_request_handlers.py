@@ -397,6 +397,7 @@ def adjust_request_host_to_referer(request):
     referer = request.headers["Referer"]        
     if referer:
         scheme = request.headers.get("X-Scheme", "http")
+        assert(scheme in ["http", "https"])
         if scheme == "http":
             port = 80
         else:
