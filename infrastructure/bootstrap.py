@@ -95,7 +95,7 @@ def install_bare_essentials():
               use_sudo = True)    
     sudo("apt-get update")
     sudo("yes yes | apt-get upgrade")
-    sudo("yes yes | apt-get install git mercurial build-essential unzip python-software-properties ruby curl python-dev htop vim vim-nox dtach dos2unix")
+    sudo("yes yes | apt-get install git mercurial build-essential unzip python-software-properties ruby curl python-dev htop vim vim-nox dtach dos2unix preload")
 
 def setup_timezone():
     logger = logging.getLogger("%s.setup_timezone" % (APP_NAME, ))
@@ -300,17 +300,28 @@ def setup_haproxy():
     logger = logging.getLogger("%s.setup_haproxy" % (APP_NAME, ))
     logger.debug("entry.")
     
+    haproxy_conf_filepath = os.path.join(os.path.dirname(__file__), "haproxy.conf")
+    assert(os.path.isfile(haproxy_conf_filepath))
+    put(haproxy_conf_filepath, "/home/ubuntu/helpmeshop/infrastructure/haproxy.conf")    
+    
     banner_filepath = os.path.join(os.path.dirname(__file__), "haproxyd")
     assert(os.path.isfile(banner_filepath))
     put(banner_filepath, "/etc/init.d/haproxyd", use_sudo=True)
     sudo("chmod +x /etc/init.d/haproxyd")    
-    sudo("update-rc.d -f haproxyd defaults")        
-    
+    sudo("update-rc.d -f haproxyd defaults")            
         
 def start_haproxy():
     logger = logging.getLogger("%s.setup_haproxy" % (APP_NAME, ))
     logger.debug("entry.")
+    sudo("/etc/init.d/haproxyd stop")
     sudo("/etc/init.d/haproxyd start")
+
+def start_nginx():
+    logger = logging.getLogger("%s.start_nginx" % (APP_NAME, ))
+    logger.debug("entry.")
+    with settings(warn_only=True):
+        sudo("/etc/init.d/nginx stop")
+    sudo("/etc/init.d/nginx start")    
         
 def install_ack():
     logger = logging.getLogger("%s.install_ack" % (APP_NAME, ))
@@ -456,8 +467,8 @@ def setup_ssl():
         put(filename, os.path.join("/home/ubuntu/myCA/", filename))
 
     with cd("~/myCA"):
-        #run("echo '01' > serial")
-        #run("touch index.txt")        
+        run("echo '01' > serial")
+        run("touch index.txt")        
         
         run("export OPENSSL_CONF=~/myCA/caconfig.cnf; openssl req -x509 -newkey rsa:2048 -out cacert.pem -outform PEM -days 1825")
         run("openssl x509 -in cacert.pem -out cacert.crt")        
@@ -509,14 +520,12 @@ def setup_nginx():
     logger = logging.getLogger("%s.setup_nginx" % (APP_NAME, ))
     logger.debug("entry.")               
     
-    sudo("mkdir -p /usr/local/nginx/logs")
-    sudo("touch /usr/local/nginx/logs/error.log")
     sudo("chown -R nginx:nginx /usr/local/nginx")
     
-    #nginx_conf_filepath = os.path.join(os.path.dirname(__file__), "nginx.conf")
-    #assert(os.path.isfile(nginx_conf_filepath))
-    #put(redis_conf_filepath, "/usr/local/nginx/redis.conf", use_sudo=True)
-    #sudo("chown nginx:nginx /usr/local/nginx/nginx.conf")
+    nginx_conf_filepath = os.path.join(os.path.dirname(__file__), "nginx.conf")
+    assert(os.path.isfile(nginx_conf_filepath))
+    put(nginx_conf_filepath, "/usr/local/nginx/conf/nginx.conf", use_sudo=True)
+    sudo("chown nginx:nginx /usr/local/nginx/conf/nginx.conf")
     
     nginx_initd_script = os.path.join(os.path.dirname(__file__), "init-deb-nginx.sh")
     assert(os.path.isfile(nginx_initd_script))
@@ -558,7 +567,7 @@ def main():
                          #init_redis,
                          #install_memcached,                         
                          #install_haproxy,
-                         #setup_haproxy,
+                         setup_haproxy,
                          #install_ack,
                          #install_pypy,
                          #setup_python,
@@ -572,7 +581,8 @@ def main():
                          #setup_hostname,
                          #install_nginx,
                          setup_nginx,
-                         #start_haproxy,
+                         start_haproxy,
+                         start_nginx,
                         ]
     # ------------------------------------------------------------------
     logger.info("executing the following functions:\n%s" % (pprint.pformat(functions_to_call), ))

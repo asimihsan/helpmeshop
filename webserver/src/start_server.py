@@ -159,7 +159,8 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------------        
 
     logger.debug("start listening on port %s" % (options.http_listen_port, ))
-    http_server = tornado.httpserver.HTTPServer(Application())
+    http_server = tornado.httpserver.HTTPServer(Application(),
+                                                xheaders=True)
     http_server.bind(options.http_listen_port)
     
     # Debug mode only supports one process in multi-processing mode.
