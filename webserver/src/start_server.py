@@ -44,6 +44,7 @@ LOG_PATH = '/var/log/helpmeshop/webserver/'
 # ----------------------------------------------------------------------
 #   Configuration variables that we require.
 # ----------------------------------------------------------------------
+define("http_listen_ip_address", default=None, help="HTTP listen IP address")
 define("http_listen_port", default=None, type=int, help="HTTP listen port")
 define("number_of_processes", default=None, type=int, help="Number of processes")
 define("debug_mode", default=None, help="Tornado debug mode enabled or not")
@@ -161,7 +162,8 @@ if __name__ == "__main__":
     logger.debug("start listening on port %s" % (options.http_listen_port, ))
     http_server = tornado.httpserver.HTTPServer(Application(),
                                                 xheaders=True)
-    http_server.bind(options.http_listen_port)
+    http_server.bind(port = options.http_listen_port,
+                     address = options.http_listen_ip_address)
     
     # Debug mode only supports one process in multi-processing mode.
     if options.debug_mode:
