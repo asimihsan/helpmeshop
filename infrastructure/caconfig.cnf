@@ -42,7 +42,7 @@ organizationalUnitName  = supplied
 # x509 extensions to use when generating server certificates.
 #
 [ local_ca_extensions ]
-subjectAltName          = DNS:alt.tradeshowhell.com
+subjectAltName          = DNS:li305-49.members.linode.com
 basicConstraints        = CA:false
 nsCertType              = server
 #       
@@ -65,10 +65,10 @@ x509_extensions         = root_ca_extensions
 [ root_ca_distinguished_name ]
 commonName              = MyOwn Root Certificate Authority
 stateOrProvinceName     = NC
-countryName             = US
-emailAddress            = root@tradeshowhell.com
-organizationName        = Trade Show Hell
-organizationalUnitName  = IT Department
+countryName             = UK
+emailAddress            = user@host.com
+organizationName        = Organization Name
+organizationalUnitName  = Organizational Unit Name
 #       
 [ root_ca_extensions ]
 basicConstraints        = CA:true

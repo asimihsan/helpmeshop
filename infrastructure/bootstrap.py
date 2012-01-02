@@ -65,15 +65,15 @@ logger = logging.getLogger(APP_NAME)
 # ----------------------------------------------------------------------
 #   Constants to change.
 # ----------------------------------------------------------------------
-REMOTE_IP_ADDRESS = "192.168.1.104"
+REMOTE_IP_ADDRESS = "178.79.168.49"
 REMOTE_HOSTNAME = "katara"
 REMOTE_USERNAME = "ubuntu"
 
 # Set either REMOTE_PASSWORD or KEY_FILENAME, where the latter is a path
 # to an authorized RSA keyfile.  KEY_FILENAME is preferred.  Set whatever
 # you don't want to use to None.
-#REMOTE_PASSWORD = "kleafEgcasp6"
-REMOTE_PASSWORD = "password" 
+REMOTE_PASSWORD = "kleafEgcasp6"
+#REMOTE_PASSWORD = "password" 
 KEY_FILENAME = r"C:\Users\ai\Documents\puttykey-4096.pub"
 OPENSSH_AUTHORIZED_KEY_FILE = r"C:\Users\ai\Documents\puttykey-4096-openssh.pub"
 # ----------------------------------------------------------------------
@@ -313,7 +313,8 @@ def setup_haproxy():
 def start_haproxy():
     logger = logging.getLogger("%s.setup_haproxy" % (APP_NAME, ))
     logger.debug("entry.")
-    sudo("/etc/init.d/haproxyd stop")
+    with settings(warn_only=True):
+        sudo("/etc/init.d/haproxyd stop")
     sudo("/etc/init.d/haproxyd start")
 
 def start_nginx():
@@ -390,15 +391,25 @@ def harden():
     
     # ------------------------------------------------------------------------
     # Set up firewall.
+    #
+    # Show rules:
+    # sudo iptables -L -t nat
+    #
+    # !!AI Is using iptables to redirect to user-bindable ports and then
+    # running nginx / haproxy as non-root users the best way of doing this?
+    # Or is this overkill? For now don't do this.
     # ------------------------------------------------------------------------
     sudo("yes yes | apt-get install ufw")
     sudo("ufw allow ssh")
+    
     sudo("ufw allow 80/tcp")
-    sudo("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080")
-    sudo("ufw allow 8080/tcp")
+    #sudo("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080")
+    #sudo("ufw allow 8080/tcp")
+    
     sudo("ufw allow 443/tcp")
-    sudo("iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443")
-    sudo("ufw allow 8443/tcp")
+    #sudo("iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 6000")
+    #sudo("ufw allow 8443/tcp")    
+    
     sudo("ufw default deny")
     sudo("ufw limit OpenSSH")
     sudo("yes yes | ufw enable")
@@ -424,6 +435,14 @@ def harden():
            use_sudo = True)
     sudo("mount -o remount /dev/shm/")
     # ------------------------------------------------------------------------    
+    
+    # ------------------------------------------------------------------------
+    #   Put on hardened sysctl.conf
+    # ------------------------------------------------------------------------
+    sysctl_conf_filepath = os.path.join(os.path.dirname(__file__), "sysctl.conf")
+    assert(os.path.isfile(sysctl_conf_filepath))
+    put(sysctl_conf_filepath, "/etc/sysctl.conf", use_sudo=True)    
+    # ------------------------------------------------------------------------
         
 def checkout_code():
     logger = logging.getLogger("%s.checkout_code" % (APP_NAME, ))
@@ -467,13 +486,16 @@ def setup_ssl():
         put(filename, os.path.join("/home/ubuntu/myCA/", filename))
 
     with cd("~/myCA"):
-        run("echo '01' > serial")
+        run("echo '10000001' > serial")
         run("touch index.txt")        
         
-        run("export OPENSSL_CONF=~/myCA/caconfig.cnf; openssl req -x509 -newkey rsa:2048 -out cacert.pem -outform PEM -days 1825")
-        run("openssl x509 -in cacert.pem -out cacert.crt")        
+        # Root CA key.
+        run("export OPENSSL_CONF=~/myCA/caconfig.cnf; openssl req -x509 -newkey rsa:4096 -out cacert.pem -outform PEM -days 1825")
         
-        run("export OPENSSL_CONF=~/myCA/exampleserver.cnf; openssl req -newkey rsa:2048 -keyout tempkey.pem -keyform PEM -out tempreq.pem -outform PEM")
+        # Self-signed root CA certificate.
+        run("openssl x509 -in cacert.pem -out cacert.crt")                
+        
+        run("export OPENSSL_CONF=~/myCA/exampleserver.cnf; openssl req -newkey rsa:4096 -keyout tempkey.pem -keyform PEM -out tempreq.pem -outform PEM")
         run("openssl rsa < tempkey.pem > server_key.pem")
         
         run("export OPENSSL_CONF=~/myCA/caconfig.cnf; openssl ca -in tempreq.pem -out server_crt.pem")
@@ -500,6 +522,12 @@ def setup_hostname():
     #!!AI Add <public IP address> <hostname> to /etc/hosts
         
 def install_nginx():
+    # ------------------------------------------------------------------------
+    #   Also harden nginx by not displaying version information in
+    #   responses.
+    #
+    #   Reference: http://www.cyberciti.biz/tips/linux-unix-bsd-nginx-webserver-security.html
+    # ------------------------------------------------------------------------    
     logger = logging.getLogger("%s.install_nginx" % (APP_NAME, ))
     logger.debug("entry.")               
     sudo("yes yes | apt-get install libpcre3-dev build-essential libssl-dev zlib1g zlib1g-dev")
@@ -508,8 +536,15 @@ def install_nginx():
         run("wget http://nginx.org/download/nginx-1.1.12.tar.gz")
         run("tar xvf nginx-1.1.12.tar.gz")
     with cd("~/nginx-1.1.12"):
+        sed(filename = "./src/http/ngx_http_header_filter_module.c",
+            before = "\"Server: nginx\"",
+            after = "\"Server: Web Server\"")
+        sed(filename = "./src/http/ngx_http_header_filter_module.c",
+            before = "\"Server: \" NGINX_VER",
+            after = "\"Server: Web Server\"")    
         cc_flags = ["-O2", "-fstack-protector-all", "-fexceptions", "-D_FORTIFY_SOURCE=2", "--param=ssp-buffer-size=4"]
-        run("./configure --user=nginx --group=nginx --with-http_ssl_module --with-pcre-jit --with-cc-opt=\"%s\"" % (" ".join(cc_flags), ))
+        modules = ["--with-http_gzip_static_module"]
+        run("./configure --user=nginx --group=nginx --with-http_ssl_module --with-pcre-jit --with-cc-opt=\"%s\" %s" % (" ".join(cc_flags), " ".join(modules)))
         run("make")
         sudo("make install")
     with cd("~"):
@@ -560,26 +595,26 @@ def main():
     #   but safe, albeit wasteful, to run again.
     # ------------------------------------------------------------------
     functions_to_call = [ \
+                         setup_hostname,
                          #setup_timezone,
                          #install_bare_essentials,
                          #install_erlang,                         
                          #install_redis,
                          #init_redis,
                          #install_memcached,                         
-                         #install_haproxy,
-                         setup_haproxy,
+                         #install_haproxy,                         
+                         #install_nginx,
                          #install_ack,
                          #install_pypy,
                          #setup_python,
-                         #setup_ntp,
-                         #harden,
+                         #setup_ntp,                         
                          #install_postgresql,
                          #init_postgresql,
                          #checkout_code,
+                         #harden,
                          #setup_bash_profile,
-                         #setup_ssl,
-                         #setup_hostname,
-                         #install_nginx,
+                         setup_ssl,                         
+                         setup_haproxy,
                          setup_nginx,
                          start_haproxy,
                          start_nginx,
