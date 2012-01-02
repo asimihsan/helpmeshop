@@ -45,7 +45,7 @@ class BasePageHandler(BaseHandler):
     def get_current_user(self):
         """ Determine what the current user is. Return None if there is
         currently no authorized user. We do this in two cases,
-        1) A user never logger in before.
+        1) A user never logged in before.
         2) A user was logged in but their session expired.
         """
         user_id = self.get_secure_cookie("user")

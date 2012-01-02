@@ -72,8 +72,8 @@ REMOTE_USERNAME = "ubuntu"
 # Set either REMOTE_PASSWORD or KEY_FILENAME, where the latter is a path
 # to an authorized RSA keyfile.  KEY_FILENAME is preferred.  Set whatever
 # you don't want to use to None.
-REMOTE_PASSWORD = "kleafEgcasp6"
-#REMOTE_PASSWORD = "password" 
+#REMOTE_PASSWORD = "kleafEgcasp6"
+REMOTE_PASSWORD = "password" 
 KEY_FILENAME = r"C:\Users\ai\Documents\puttykey-4096.pub"
 OPENSSH_AUTHORIZED_KEY_FILE = r"C:\Users\ai\Documents\puttykey-4096-openssh.pub"
 # ----------------------------------------------------------------------
@@ -400,18 +400,21 @@ def harden():
     # Or is this overkill? For now don't do this.
     # ------------------------------------------------------------------------
     sudo("yes yes | apt-get install ufw")
-    sudo("ufw allow ssh")
+    sudo("yes yes | ufw disable")
+    sudo("yes yes | ufw reset --force")
     
-    sudo("ufw allow 80/tcp")
+    sudo("ufw limit ssh")
+    sudo("ufw allow ntp")
+    
+    sudo("ufw allow www")
     #sudo("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080")
     #sudo("ufw allow 8080/tcp")
     
-    sudo("ufw allow 443/tcp")
+    sudo("ufw allow https")
     #sudo("iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 6000")
     #sudo("ufw allow 8443/tcp")    
     
-    sudo("ufw default deny")
-    sudo("ufw limit OpenSSH")
+    sudo("ufw default deny")    
     sudo("yes yes | ufw enable")
     # ------------------------------------------------------------------------
     
@@ -613,11 +616,11 @@ def main():
                          #checkout_code,
                          #harden,
                          #setup_bash_profile,
-                         setup_ssl,                         
-                         #setup_haproxy,
-                         #setup_nginx,
+                         #setup_ssl,                         
+                         #setup_haproxy,                         
                          #start_haproxy,
-                         #start_nginx,
+                         setup_nginx,
+                         start_nginx,
                         ]
     # ------------------------------------------------------------------
     logger.info("executing the following functions:\n%s" % (pprint.pformat(functions_to_call), ))
