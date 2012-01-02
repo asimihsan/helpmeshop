@@ -5,25 +5,17 @@
     {% if len(list_items) == 0 %}
         <p>This list is empty! Use the button below add an item.</p>
     {% else %}
-        <table>
+        <table class="list_items">            
             <thead>
                 <tr>
-                    <th>Title</th>
-                    <th>URL</th>
-                    <th>Notes</th>
+                    <th>Item</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for list_item in list_items %}
-                <tr>
-                    <td>{{ list_item.title }}</td>
-                    <td>{{ list_item.url }}</td>
-                    <td>{{ list_item.notes }}</td>
-                    <td>Delete</td>
-                </tr>
+                    {% include fragment_list_item.html %}
                 {% end %}
-
             </tbody>
         </table>    
     {% end %}    
