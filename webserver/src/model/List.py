@@ -12,7 +12,7 @@ import uuid
 import re
 
 from ListItem import ListItem
-from utilities import validate_base64_parameter, convert_uuid_string_to_base64, convert_base64_to_uuid_string
+from utilities import validate_base64_parameter, convert_uuid_string_to_base64, convert_base64_to_uuid_string, validate_uuid_string
 
 class List(object):
     REQUIRED_KEYS = ["revision_id", "list_id", "contents", "datetime_edited"]   
@@ -20,8 +20,8 @@ class List(object):
     
     def __init__(self, revision_id, list_id, contents, datetime_edited):
         logger = logging.getLogger("List")
-        assert validate_base64_parameter(revision_id)
-        assert validate_base64_parameter(list_id)
+        assert validate_uuid_string(revision_id)
+        assert validate_uuid_string(list_id)
     
         self.revision_id = revision_id
         self.list_id = list_id

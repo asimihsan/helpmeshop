@@ -30,7 +30,9 @@ from ListHandler import ListsHandler
 from ListHandler import ListReadHandler
 from ListHandler import ListCreateHandler
 from ListHandler import ListDeleteHandler
+
 from ListHandler import ListCreateItemHandler
+from ListHandler import ListDeleteItemHandler
 
 from model.List import List
 from model.ListItem import ListItem
@@ -98,7 +100,7 @@ class MainHandler(BasePageHandler):
             new_url = self.reverse_url("ListsHandler")
             logger.debug("Redirecting to: %s" % (new_url, ))
             self.redirect(new_url)
-
+            return
         data = {}
         data['user'] = None
         lists = []
@@ -128,7 +130,7 @@ class Application(tornado.web.Application):
             tornado.web.URLSpec(pattern=r"/list/(.*)/item/create",       handler_class=ListCreateItemHandler, name="ListCreateItemHandler"),
             #tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/read",   handler_class=ListReadItemHandler, name="ListReadItemHandler"),
             #tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/update", handler_class=ListUpdateItemHandler, name="ListUpdateItemHandler"),
-            #tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/delete", handler_class=ListDeleteItemHandler, name="ListDeleteItemHandler"),
+            tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/delete", handler_class=ListDeleteItemHandler, name="ListDeleteItemHandler"),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
