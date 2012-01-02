@@ -15,7 +15,14 @@
                 {% for list_obj in lists %}
                 <tr>
                     <td><a href="{{ reverse_url("ListReadHandler", list_obj.url_safe_list_id) }}">{{ list_obj.title }}</a></td>
-                    <td><a href="{{ reverse_url("ListDeleteHandler", list_obj.url_safe_list_id) }}">Delete this list</a></td>
+                    <td>
+                        <form method="post" action="{{ reverse_url("ListDeleteHandler", list_obj.url_safe_list_id) }}">                       
+                            {% raw xsrf_form_html() %}                                                
+                            <div>
+                                <input class="btn danger" type="submit" value="Delete this list">
+                            </div>                            
+                        </form>     
+                    </td>
                 </tr>
                 {% end %}
 
@@ -23,7 +30,15 @@
         </table>    
     {% end %}
     
+    
     <p>
-        <a class="btn large primary" href="{{ reverse_url("ListCreateHandler") }}">Create a list</a>
+        <form method="post" action="{{ reverse_url("ListCreateHandler") }}">                       
+            {% raw xsrf_form_html() %}                    
+            <fieldset>
+                <div class="clearfix">
+                    <input class="btn large primary" type="submit" value="Create a list">
+                </div>
+            </fieldset>
+        </form>
     </p>
 </div>

@@ -28,7 +28,22 @@
         </table>    
     {% end %}    
     <p>
-        <a class="btn large primary" href="{{ reverse_url("ListCreateItemHandler", list_obj.url_safe_list_id) }}">Add an item</a>
-        <a class="btn large danger" href="{{ reverse_url("ListDeleteHandler", list_obj.url_safe_list_id) }}">Delete this list</a>
+        <form method="post" action="{{ reverse_url("ListCreateItemHandler", list_obj.url_safe_list_id) }}">                       
+            {% raw xsrf_form_html() %}                    
+            <fieldset>
+                <div>
+                    <input class="btn large primary" type="submit" value="Add an item">
+                </div>
+            </fieldset>
+        </form>    
+        
+        <form method="post" action="{{ reverse_url("ListDeleteHandler", list_obj.url_safe_list_id) }}">                       
+            {% raw xsrf_form_html() %}                    
+            <fieldset>
+                <div>
+                    <input class="btn large danger" type="submit" value="Delete this list">
+                </div>
+            </fieldset>
+        </form>    
     </p>
 </div>
