@@ -486,7 +486,7 @@ def setup_ssl():
         put(filename, os.path.join("/home/ubuntu/myCA/", filename))
 
     with cd("~/myCA"):
-        run("echo '10000001' > serial")
+        run("echo '10000002' > serial")
         run("touch index.txt")        
         
         # Root CA key.
@@ -595,7 +595,7 @@ def main():
     #   but safe, albeit wasteful, to run again.
     # ------------------------------------------------------------------
     functions_to_call = [ \
-                         setup_hostname,
+                         #setup_hostname,
                          #setup_timezone,
                          #install_bare_essentials,
                          #install_erlang,                         
@@ -614,10 +614,10 @@ def main():
                          #harden,
                          #setup_bash_profile,
                          setup_ssl,                         
-                         setup_haproxy,
-                         setup_nginx,
-                         start_haproxy,
-                         start_nginx,
+                         #setup_haproxy,
+                         #setup_nginx,
+                         #start_haproxy,
+                         #start_nginx,
                         ]
     # ------------------------------------------------------------------
     logger.info("executing the following functions:\n%s" % (pprint.pformat(functions_to_call), ))
