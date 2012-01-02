@@ -7,9 +7,9 @@ prompt                  = no
 distinguished_name      = server_distinguished_name
 
 [ server_distinguished_name ]
-commonName              = articheck.com
+commonName              = li305-49.members.linode.com
 stateOrProvinceName     = N/A
 countryName             = UK
-emailAddress            = admin@articheck.com
-organizationName        = Articheck
+emailAddress            = admin@helpmeshop.co.uk
+organizationName        = helpmeshop.co.uk
 organizationalUnitName  = N/A
