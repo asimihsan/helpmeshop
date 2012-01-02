@@ -26,6 +26,7 @@ from auth_request_handlers import LoginBrowserIDHandler
 from auth_request_handlers import LoginApiHandler
 from auth_request_handlers import LogoutHandler
 
+from ListHandler import ListsHandler
 from ListHandler import ListReadHandler
 from ListHandler import ListCreateHandler
 from ListHandler import ListDeleteHandler
@@ -88,37 +89,46 @@ logger = logging.getLogger(APP_NAME)
 
 class MainHandler(BasePageHandler):
     @tornado.web.asynchronous
-    @tornado.gen.engine
+    @tornado.gen.engine 
     def get(self): 
+        logger = logging.getLogger("MainHandler.get")
+        logger.debug("entry.")
+        if self.current_user:
+            logger.debug("Current user is authorized as: %s" % (self.current_user, ))
+            new_url = self.reverse_url("ListsHandler")
+            logger.debug("Redirecting to: %s" % (new_url, ))
+            self.redirect(new_url)
+
         data = {}
         data['user'] = None
         lists = []
-        if self.current_user:
-            data['user'] = tornado.escape.xhtml_escape(self.current_user)
-            lists = yield tornado.gen.Task(self.db.get_lists, self.current_user)
-            for list_obj in lists:
-                contents_decoded = tornado.escape.json_decode(list_obj.contents)
-                setattr(list_obj, "title", contents_decoded["title"])
-            logger.debug("lists:\n%s" % (pprint.pformat(lists), ))        
         data['lists'] = lists 
-        data['title'] = "Help Me Shop"      
-        
+        data['title'] = "Help Me Shop"              
         self.render("index.html", **data)            
 
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r"/", MainHandler),
+            
             (r"/login/api/", LoginApiHandler),
             (r"/login/google/", LoginGoogleHandler),
             (r"/login/facebook/", LoginFacebookHandler),
             (r"/login/twitter/", LoginTwitterHandler),
             (r"/login/browserid/", LoginBrowserIDHandler),
             (r"/logout", LogoutHandler),
-            tornado.web.URLSpec(pattern=r"/read_list/(.*)",   handler_class=ListReadHandler, name="ListReadHandler"),
-            tornado.web.URLSpec(pattern=r"/create_list/",     handler_class=ListCreateHandler, name="ListCreateHandler"),
-            tornado.web.URLSpec(pattern=r"/delete_list/(.*)", handler_class=ListDeleteHandler, name="ListDeleteHandler"),
-            tornado.web.URLSpec(pattern=r"/create_item/(.*)", handler_class=ListCreateItemHandler, name="ListCreateItemHandler"),
+            
+            tornado.web.URLSpec(pattern=r"/lists/",            handler_class=ListsHandler, name="ListsHandler"),
+            
+            tornado.web.URLSpec(pattern=r"/list/create",       handler_class=ListCreateHandler, name="ListCreateHandler"),
+            tornado.web.URLSpec(pattern=r"/list/(.*)/read",    handler_class=ListReadHandler, name="ListReadHandler"),            
+            #tornado.web.URLSpec(pattern=r"/list/(.*)/update", handler_class=ListUpdateHandler, name="ListUpdateHandler"),
+            tornado.web.URLSpec(pattern=r"/list/(.*)/delete",  handler_class=ListDeleteHandler, name="ListDeleteHandler"),
+            
+            tornado.web.URLSpec(pattern=r"/list/(.*)/item/create",       handler_class=ListCreateItemHandler, name="ListCreateItemHandler"),
+            #tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/read",   handler_class=ListReadItemHandler, name="ListReadItemHandler"),
+            #tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/update", handler_class=ListUpdateItemHandler, name="ListUpdateItemHandler"),
+            #tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/delete", handler_class=ListDeleteItemHandler, name="ListDeleteItemHandler"),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),

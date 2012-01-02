@@ -1,0 +1,34 @@
+{% include fragment_generic_header.html %}
+
+    <div class="container">
+        <div class="content">
+            {% if not user %}
+            <div class="page-header">                                
+                <h1>Help Me Shop<br />
+                <small>Share your shopping lists, help friends buy stuff off them!</small>                
+                </h1>
+            </div>
+            {% end %}
+        <div class="row">
+            <div class="span14">
+                {% if user %}
+                    {% include fragment_breadcrumbs.html %}
+                    <p>I think you are: {{ user }}</p>
+                    {% include fragment_lists.html %}
+                {% else %}
+                    <p>You aren't logged in! Do so below.</p>
+                    <p>
+                        <ul>
+                            <li><a href="/login/google/">Login using Google</a></li>
+                            <li><a href="/login/facebook/">Login using Facebook</a></li>
+                            <li><a href="/login/twitter/">Login using Twitter</a></li>
+                            <li><a href="#" id="browserid">Login using BrowserID</a></li>
+                            <li><a href="/login/api/">Login using an API key</a></li>
+                        </ul>
+                    </p>
+                {% end %}
+            </div>
+        </div>
+    </div>    
+
+{% include fragment_generic_footer.html %}

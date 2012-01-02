@@ -21,12 +21,32 @@ import tornado.escape
 from model.List import List
 from base_request_handlers import BasePageHandler
 from utilities import validate_base64_parameter, convert_uuid_string_to_base64, convert_base64_to_uuid_string, normalize_uuid_string
+        
+class ListsHandler(BasePageHandler):
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):    
+        logger = logging.getLogger("ListsHandler.get")
+        logger.debug("entry.")
+        if not self.current_user:
+            logging.debug("User is not authorized.")
+            raise tornado.web.HTTPError(403)    
+        data = {}
+        data['user'] = tornado.escape.xhtml_escape(self.current_user)
+        lists = yield tornado.gen.Task(self.db.get_lists, self.current_user)
+        for list_obj in lists:
+            contents_decoded = tornado.escape.json_decode(list_obj.contents)
+            setattr(list_obj, "title", contents_decoded["title"])
+        logger.debug("lists:\n%s" % (pprint.pformat(lists), ))        
+        data['lists'] = lists 
+        data['title'] = "Help Me Shop"      
+        self.render("lists.html", **data)   
 
 class ListCreateHandler(BasePageHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
-    def get(self):
-        logger = logging.getLogger("ListCreateHandler.get")
+    def post(self):
+        logger = logging.getLogger("ListCreateHandler.post")
         logger.debug("entry. current_user: %s" % (self.current_user, ))
         if not self.current_user:
             logging.debug("User is not authorized.")
@@ -37,7 +57,10 @@ class ListCreateHandler(BasePageHandler):
                                              self.current_user,
                                              tornado.escape.json_encode(new_list_contents))
         logger.debug("new_list_id: %s" % (new_list_id, ))
-        self.redirect("/")
+        
+        new_url = self.reverse_url("ListsHandler")
+        logger.debug("Redirecting to: %s" % (new_url, ))
+        self.redirect(new_url)        
 
 # ----------------------------------------------------------------------------
 #   Simplest way of doing this is to:
@@ -59,8 +82,8 @@ class ListCreateHandler(BasePageHandler):
 class ListCreateItemHandler(BasePageHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
-    def get(self, list_id_base64):
-        logger = logging.getLogger("ListCreateItemHandler.get")
+    def post(self, list_id_base64):
+        logger = logging.getLogger("ListCreateItemHandler.post")
         logger.debug("entry. list_id_base64: %s, current_user: %s" % (list_id_base64, self.current_user, ))
         
         # --------------------------------------------------------------------
@@ -135,8 +158,8 @@ class ListCreateItemHandler(BasePageHandler):
 class ListDeleteHandler(BasePageHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
-    def get(self, list_id_base64):
-        logger = logging.getLogger("ListDeleteHandler.get")
+    def post(self, list_id_base64):
+        logger = logging.getLogger("ListDeleteHandler.post")
         logger.debug("entry. current_user: %s" % (self.current_user, ))
         if not self.current_user:
             logging.debug("User is not authorized.")
@@ -151,7 +174,10 @@ class ListDeleteHandler(BasePageHandler):
         logger.debug("rc: %s" % (rc, ))        
         if rc != True:
             raise tornado.web.HTTPError(400, "Failed to delete the list.")
-        self.redirect("/")    
+            
+        new_url = self.reverse_url("ListsHandler")
+        logger.debug("Redirecting to: %s" % (new_url, ))
+        self.redirect(new_url)
 
 # ----------------------------------------------------------------------------
 #   Keep in mind that lists are public, so we don't need to authenticate

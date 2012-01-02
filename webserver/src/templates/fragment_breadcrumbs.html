@@ -6,7 +6,7 @@
         </li>
         {% if globals().get('list_obj', None) %}        
             <li>
-                <a href="/">List of lists</a>
+                <a href="{{ reverse_url("ListsHandler") }}">List of lists</a>
                 <span class="divider">/</span>
             </li>
             <li class="active">{{ list_obj.get_title() }}</li>
