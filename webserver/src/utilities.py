@@ -24,22 +24,22 @@ def validate_base64_parameter(parameter, is_uuid=True):
     is_uuid is False do not perform the UUID check.
     
     Returns False is not valid, else returns True."""    
-    #logger = logging.getLogger("validate_base64_parameter")
-    #logger.debug("entry. parameter: %s, is_uuid: %s" % (parameter, is_uuid))
+    logger = logging.getLogger("validate_base64_parameter")
+    logger.debug("entry. parameter: %s, is_uuid: %s" % (parameter, is_uuid))
     
     match = REGEXP_BASE64.search(parameter)    
     if not match:
-        #logger.debug("regexp didn't match.")
+        logger.debug("regexp didn't match.")
         return False    
     try:
         decoded = base64.urlsafe_b64decode(parameter)
         if is_uuid:
             uuid_obj = uuid.UUID(bytes=decoded)
     except:
-        #logger.exception("unhandled exception")
+        logger.exception("unhandled exception")
         return False
     else:
-        #logger.debug("valid parameter")
+        logger.debug("valid parameter")
         return True
         
 def validate_uuid_string(parameter):
