@@ -72,8 +72,8 @@ REMOTE_USERNAME = "ubuntu"
 # Set either REMOTE_PASSWORD or KEY_FILENAME, where the latter is a path
 # to an authorized RSA keyfile.  KEY_FILENAME is preferred.  Set whatever
 # you don't want to use to None.
-#REMOTE_PASSWORD = "kleafEgcasp6"
-REMOTE_PASSWORD = "password" 
+REMOTE_PASSWORD = "kleafEgcasp6"
+#REMOTE_PASSWORD = "password" 
 KEY_FILENAME = r"C:\Users\ai\Documents\puttykey-4096.pub"
 OPENSSH_AUTHORIZED_KEY_FILE = r"C:\Users\ai\Documents\puttykey-4096-openssh.pub"
 # ----------------------------------------------------------------------

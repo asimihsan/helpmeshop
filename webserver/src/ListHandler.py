@@ -87,11 +87,17 @@ class ListCreateItemHandler(BasePageHandler):
         logger.debug("entry. list_id_base64: %s, current_user: %s" % (list_id_base64, self.current_user, ))
         
         # --------------------------------------------------------------------
-        #   Validate inputs.
+        #   Gather inputs.
         # --------------------------------------------------------------------
+        list_id_base64 = str(list_id_base64)
+        # --------------------------------------------------------------------
+        
+        # --------------------------------------------------------------------
+        #   Validate inputs.
+        # --------------------------------------------------------------------        
         if not self.current_user:
             logging.debug("User is not authorized.")
-            raise tornado.web.HTTPError(403)
+            raise tornado.web.HTTPError(403)        
         if not validate_base64_parameter(list_id_base64):
             raise tornado.web.HTTPError(400, "List identifier is malformed.")
         list_id = convert_base64_to_uuid_string(str(list_id_base64))                
@@ -161,11 +167,23 @@ class ListDeleteHandler(BasePageHandler):
     def post(self, list_id_base64):
         logger = logging.getLogger("ListDeleteHandler.post")
         logger.debug("entry. current_user: %s" % (self.current_user, ))
+        
+        # --------------------------------------------------------------------
+        #   Gather inputs.
+        # --------------------------------------------------------------------
+        list_id_base64 = str(list_id_base64)
+        # --------------------------------------------------------------------        
+        
+        # --------------------------------------------------------------------
+        #   Validate inputs.
+        # --------------------------------------------------------------------
         if not self.current_user:
             logging.debug("User is not authorized.")
-            raise tornado.web.HTTPError(403)        
+            raise tornado.web.HTTPError(403)                
         if not validate_base64_parameter(list_id_base64):
             raise tornado.web.HTTPError(400, "List identifier is malformed.")
+        # --------------------------------------------------------------------
+        
         list_id = convert_base64_to_uuid_string(str(list_id_base64))        
         logger.debug("list_id: %s" % (list_id, ))
         rc = yield tornado.gen.Task(self.db.delete_list,                                
@@ -222,6 +240,7 @@ class ListDeleteItemHandler(BasePageHandler):
         # --------------------------------------------------------------------
         revision_id_base64 = str(self.get_argument("revision_id_base64"))
         logger.debug("revision_id_base64: %s" % (revision_id_base64, ))
+        list_id_base64 = str(list_id_base64)
         # --------------------------------------------------------------------        
         
         # --------------------------------------------------------------------
