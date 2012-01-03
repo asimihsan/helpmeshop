@@ -226,19 +226,22 @@ class ListReadHandler(BasePageHandler):
         data['list_obj'] = list_obj
         data['user'] = self.current_user                
         self.render("read_list.html", **data)     
-    
-class ListDeleteItemHandler(BasePageHandler):
+        
+class ListUpdateItemHandler(BasePageHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def post(self, list_id_base64, item_ident):
-        logger = logging.getLogger("ListDeleteItemHandler.post")
+        logger = logging.getLogger("ListUpdateItemHandler.post")
         logger.debug("entry. list_id_base64: %s, item_ident: %s" % (list_id_base64, item_ident))
+        logger.debug("request: %s" % (self.request, ))
+        logger.debug("request arguments\n%s" % (pprint.pformat(self.request.arguments), ))
+        logger.debug("request files: %s" % (self.request.files, ))
         
         # --------------------------------------------------------------------
         #   Gather the arguments. GET arguments come for free in the
         #   function call.
         # --------------------------------------------------------------------
-        revision_id_base64 = str(self.get_argument("revision_id_base64"))
+        revision_id_base64 = str(self.get_argument("list_revision_id"))
         logger.debug("revision_id_base64: %s" % (revision_id_base64, ))
         list_id_base64 = str(list_id_base64)
         # --------------------------------------------------------------------        
@@ -266,7 +269,51 @@ class ListDeleteItemHandler(BasePageHandler):
         # --------------------------------------------------------------------
         #   Return to the view that shows the list being read.
         # --------------------------------------------------------------------
-        new_url = self.reverse_url("ListReadHandler", list_id)
+        new_url = self.reverse_url("ListReadHandler", list_id_base64)
+        logger.debug("redirecting to: %s" % (new_url, ))
+        self.redirect(new_url)
+        # --------------------------------------------------------------------
+    
+class ListDeleteItemHandler(BasePageHandler):
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, list_id_base64, item_ident):
+        logger = logging.getLogger("ListDeleteItemHandler.post")
+        logger.debug("entry. list_id_base64: %s, item_ident: %s" % (list_id_base64, item_ident))
+        
+        # --------------------------------------------------------------------
+        #   Gather the arguments. GET arguments come for free in the
+        #   function call.
+        # --------------------------------------------------------------------
+        revision_id_base64 = str(self.get_argument("list_revision_id"))
+        logger.debug("revision_id_base64: %s" % (revision_id_base64, ))
+        list_id_base64 = str(list_id_base64)
+        # --------------------------------------------------------------------        
+        
+        # --------------------------------------------------------------------
+        #   Validate inputs.
+        # --------------------------------------------------------------------
+        if not self.current_user:            
+            raise tornado.web.HTTPError(403, "User is not authorized.")        
+        if not validate_base64_parameter(list_id_base64):
+            raise tornado.web.HTTPError(400, "List identifier is malformed.")
+        if not item_ident.isdigit():
+            raise tornado.web.HTTPError(400, "Item ident is malformed.")
+        if not validate_base64_parameter(revision_id_base64):
+            raise tornado.web.HTTPError(400, "Revision identifier is malformed.")
+        # --------------------------------------------------------------------
+        
+        # --------------------------------------------------------------------
+        #   Parse inputs.
+        # --------------------------------------------------------------------
+        list_id = convert_base64_to_uuid_string(str(list_id_base64))        
+        revision_id = convert_base64_to_uuid_string(str(revision_id_base64))        
+        # --------------------------------------------------------------------
+        
+        # --------------------------------------------------------------------
+        #   Return to the view that shows the list being read.
+        # --------------------------------------------------------------------
+        new_url = self.reverse_url("ListReadHandler", list_id_base64)
         logger.debug("redirecting to: %s" % (new_url, ))
         self.redirect(new_url)
         # --------------------------------------------------------------------

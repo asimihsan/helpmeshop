@@ -32,6 +32,7 @@ from ListHandler import ListCreateHandler
 from ListHandler import ListDeleteHandler
 
 from ListHandler import ListCreateItemHandler
+from ListHandler import ListUpdateItemHandler
 from ListHandler import ListDeleteItemHandler
 
 from model.List import List
@@ -129,7 +130,7 @@ class Application(tornado.web.Application):
             
             tornado.web.URLSpec(pattern=r"/list/(.*)/item/create",       handler_class=ListCreateItemHandler, name="ListCreateItemHandler"),
             #tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/read",   handler_class=ListReadItemHandler, name="ListReadItemHandler"),
-            #tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/update", handler_class=ListUpdateItemHandler, name="ListUpdateItemHandler"),
+            tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/update", handler_class=ListUpdateItemHandler, name="ListUpdateItemHandler"),
             tornado.web.URLSpec(pattern=r"/list/(.*)/item/(.*)/delete", handler_class=ListDeleteItemHandler, name="ListDeleteItemHandler"),
         ]
         settings = dict(
