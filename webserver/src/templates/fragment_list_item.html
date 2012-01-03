@@ -1,7 +1,35 @@
 <tr>
-    <td>
-        <h3>{{ list_item.title }}</h3><br />
-        <p><strong>URL</strong>: {{ list_item.url }}<br />
-        <p><strong>Notes</strong>: {{ list_item.notes }}</p>
-    <td>Delete</td>
+    <form class="form-stacked" method="post" action="{{ reverse_url("ListUpdateItemHandler", list_obj.url_safe_list_id, list_item.ident) }}" enctype="multipart/form-data">                       
+        {% raw xsrf_form_html() %}        
+        <input type="hidden" name="list_revision_id" value="{{ list_obj.url_safe_revision_id }}"/>
+        <input type="hidden" name="list_item_ident" value="{{ list_item.ident }}"/>
+        <td>                        
+            <div class="clearfix">
+                <label for="list_item_title">Title</label>                    
+                <div class="input">
+                    <input type="text" size="60" name="list_item_title" value="{{ list_item.title }}" />
+                </div>
+            </div>
+            
+            <div class="clearfix">
+                <label for="list_item_url">URL</label>                    
+                <div class="input">
+                    <input type="text" size="60" name="list_item_url" value="{{ list_item.url }}" />
+                </div>
+            </div>
+            
+            <div class="clearfix">
+                <label for="list_item_notes">Notes</label>                    
+                <div class="input">
+                    <input type="text" size="60" name="list_item_notes" value="{{ list_item.notes }}" />
+                </div>
+            </div>            
+        </td>    
+        <td>            
+            <div>
+                <input class="btn primary" type="submit" value="Submit" />                    
+                <input class="btn danger" type="submit" value="Delete" />
+            </div>        
+        </td>
+    </form>
 </tr>

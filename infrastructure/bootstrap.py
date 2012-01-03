@@ -258,7 +258,8 @@ def setup_python():
                "pycket",
                "redis",
                "python-memcached",
-               "paramiko"]
+               "paramiko",
+               "supervisor"]
     sudo("easy_install -U %s" % (" ".join(modules), ))        
     sudo("rm -rf /tmp/tmp*")
     
@@ -619,8 +620,8 @@ def main():
                          #setup_ssl,                         
                          #setup_haproxy,                         
                          #start_haproxy,
-                         setup_nginx,
-                         start_nginx,
+                         #setup_nginx,
+                         #start_nginx,
                         ]
     # ------------------------------------------------------------------
     logger.info("executing the following functions:\n%s" % (pprint.pformat(functions_to_call), ))

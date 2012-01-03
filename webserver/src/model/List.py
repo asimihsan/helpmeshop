@@ -26,6 +26,7 @@ class List(object):
         self.revision_id = revision_id
         self.list_id = list_id
         self.url_safe_list_id = convert_uuid_string_to_base64(self.list_id)
+        self.url_safe_revision_id = convert_uuid_string_to_base64(self.revision_id)
         self.contents = contents
         self.datetime_edited = datetime_edited
         
