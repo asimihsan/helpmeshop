@@ -394,7 +394,7 @@ def adjust_request_host_to_referer(request):
     # --------------------------------------------------------------------
     logger = logging.getLogger("adjust_request_host_to_referer")
     logger.debug("entry.")
-    referer = request.headers["Referer"]        
+    referer = request.headers.get("Referer", None)
     if referer:
         scheme = request.headers.get("X-Scheme", "http")
         assert(scheme in ["http", "https"])
