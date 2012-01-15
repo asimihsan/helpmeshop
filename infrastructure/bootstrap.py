@@ -103,7 +103,17 @@ def install_bare_essentials():
               use_sudo = True)
     sudo("apt-get update")
     sudo("yes yes | apt-get upgrade")
-    sudo("yes yes | apt-get install git mercurial build-essential unzip python-software-properties ruby curl python-dev htop vim vim-nox dtach dos2unix preload")
+    sudo("yes yes | apt-get install git mercurial build-essential unzip python-software-properties ruby curl python-dev htop vim vim-nox dtach dos2unix preload multitail")
+
+def install_mongodb():
+    logger = logging.getLogger("%s.install_mongodb" % (APP_NAME, ))
+    logger.debug("entry.")
+    sudo("apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10")
+    append(filename = r"/etc/apt/sources.list",
+           text = r"deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen",
+           use_sudo = True)
+    sudo("yes yes | apt-get update")
+    sudo("yes yes | apt-get install mongodb-10gen")
 
 def setup_timezone():
     logger = logging.getLogger("%s.setup_timezone" % (APP_NAME, ))
@@ -637,6 +647,7 @@ def main():
                          #setup_hostname,
                          #setup_timezone,
                          #install_bare_essentials,
+                         install_mongodb,
                          #install_erlang,
                          #install_redis,
                          #init_redis,
@@ -652,7 +663,7 @@ def main():
                          #checkout_code,
                          #harden,
                          #setup_bash_profile,
-                         setup_vim,
+                         #setup_vim,
                          #setup_ssl,
                          #setup_haproxy,
                          #start_haproxy,
