@@ -147,13 +147,19 @@ def install_browsers():
            text = r"deb http://dl.google.com/linux/deb/ stable non-free main",
            use_sudo = True)
     sudo("yes yes | apt-get update")
-    sudo("yes yes | apt-get install google-chrome-stable")
+    sudo("yes yes | apt-get install google-chrome-unstable")
+    with cd("~"):
+        run("wget http://chromium.googlecode.com/files/chromedriver_linux32_18.0.1022.0.zip")
+        run("unzip chromedriver_linux32_18.0.1022.0.zip")
+        sudo("mv chromedriver /usr/bin/chromedriver")
+        sudo("chmod +x /usr/bin/chromedriver")
+        run("rm -f chromedriver*")
 
     # Firefox
     sudo("yes yes | apt-get install firefox")
 
-    # Xfvb, headless X
-    sudo("yes yes | apt-get install xfvb")
+    # Xvfb, headless X
+    sudo("yes yes | apt-get install xvfb")
 
 def install_bare_essentials():
     logger = logging.getLogger("%s.install_bare_essentials" % (APP_NAME, ))
@@ -551,11 +557,13 @@ def harden():
     # ------------------------------------------------------------------------
     # Make shared memory read-only
     # https://help.ubuntu.com/community/StricterDefaults
+    #
+    # Chrome doesn't work with this, so disable.
     # ------------------------------------------------------------------------
-    append(filename = "/etc/fstab",
-           text = "tmpfs     /dev/shm     tmpfs     defaults,ro     0     0",
-           use_sudo = True)
-    sudo("mount -o remount /dev/shm/")
+    #append(filename = "/etc/fstab",
+    #       text = "tmpfs     /dev/shm     tmpfs     defaults,ro     0     0",
+    #       use_sudo = True)
+    #sudo("mount -o remount /dev/shm/")
     # ------------------------------------------------------------------------
 
     # ------------------------------------------------------------------------
