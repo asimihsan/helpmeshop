@@ -68,7 +68,7 @@ logger = logging.getLogger(APP_NAME)
 # ----------------------------------------------------------------------
 #   Constants to change.
 # ----------------------------------------------------------------------
-#REMOTE_IP_ADDRESS = "178.79.168.49"
+REMOTE_IP_ADDRESS = "178.79.168.49"
 REMOTE_SSH_PORT = 22
 REMOTE_HOSTNAME = "katara"
 REMOTE_USERNAME = "ubuntu"
@@ -76,8 +76,8 @@ REMOTE_USERNAME = "ubuntu"
 # Set either REMOTE_PASSWORD or KEY_FILENAME, where the latter is a path
 # to an authorized RSA keyfile.  KEY_FILENAME is preferred.  Set whatever
 # you don't want to use to None.
-REMOTE_PASSWORD = "kleafEgcasp6"
-#REMOTE_PASSWORD = "password"
+#REMOTE_PASSWORD = "kleafEgcasp6"
+REMOTE_PASSWORD = "password"
 
 if platform.system() == "Windows":
     KEY_FILENAME = r"C:\Users\ai\Documents\puttykey-4096.pub"
@@ -137,6 +137,24 @@ def install_mongodb():
     sudo("yes yes | apt-get update")
     sudo("yes yes | apt-get install mongodb-10gen")
 
+def install_browsers():
+    logger = logging.getLogger("%s.install_browsers" % (APP_NAME, ))
+    logger.debug("entry.")
+
+    # Chrome
+    sudo("wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -")
+    append(filename = r"/etc/apt/sources.list",
+           text = r"deb http://dl.google.com/linux/deb/ stable non-free main",
+           use_sudo = True)
+    sudo("yes yes | apt-get update")
+    sudo("yes yes | apt-get install google-chrome-stable")
+
+    # Firefox
+    sudo("yes yes | apt-get install firefox")
+
+    # Xfvb, headless X
+    sudo("yes yes | apt-get install xfvb")
+
 def install_bare_essentials():
     logger = logging.getLogger("%s.install_bare_essentials" % (APP_NAME, ))
     logger.debug("entry.")
@@ -149,8 +167,48 @@ def install_bare_essentials():
     sudo("apt-get update")
     sudo("yes yes | apt-get upgrade")
     sudo("yes yes | apt-get install git mercurial build-essential unzip python-software-properties ruby curl python-dev htop dtach dos2unix preload multitail")
+    sudo("yes yes | apt-get autoremove")
 
-def install_vim():    logger = logging.getLogger("%s.install_vim" % (APP_NAME, ))    logger.debug("entry.")    sudo("yes yes | apt-get install mercurial")    with cd("~"):        run("rm -rf vimsrc*")        run("hg clone https://vim.googlecode.com/hg/ vimsrc")    with cd(r"~/vimsrc"):        vim_flags = ["--without-x",                     "--disable-gui",                     "--enable-pythoninterp",                     "--enable-rubyinterp",                     "--enable-cscope",                     "--enable-multibyte",                     "--with-features=huge"]        run("./configure %s" % (" ".join(vim_flags), ))        run("make")        sudo("make install")    with cd("~"):        run("rm -rf vimsrc*")    with cd("~"):        run("rm -f .vimrc")        run("rm -rf .vim")    vimrc_path = os.path.join(os.path.dirname(__file__), "vim", ".vimrc")    assert(os.path.isfile(vimrc_path))    vimfiles_path = os.path.join(os.path.dirname(__file__), "vim", ".vim")    assert(os.path.isdir(vimfiles_path))    put(vimrc_path, r"/home/ubuntu/.vimrc")    put_directory(vimfiles_path, r"/home/ubuntu/")    run("dos2unix /home/ubuntu/.vimrc")    sudo("yes yes | apt-get install ruby-dev")    with cd("~/.vim/ruby/command-t"):        run("ruby extconf.rb")        run("make clean")        run("make")def setup_timezone():    logger = logging.getLogger("%s.setup_timezone" % (APP_NAME, ))
+def install_vim():
+    logger = logging.getLogger("%s.install_vim" % (APP_NAME, ))
+    logger.debug("entry.")
+    sudo("yes yes | apt-get install mercurial")
+    with cd("~"):
+        run("rm -rf vimsrc*")
+        run("hg clone https://vim.googlecode.com/hg/ vimsrc")
+    with cd(r"~/vimsrc"):
+        vim_flags = ["--without-x",
+                     "--disable-gui",
+                     "--enable-pythoninterp",
+                     "--enable-rubyinterp",
+                     "--enable-cscope",
+                     "--enable-multibyte",
+                     "--with-features=huge"]
+        run("./configure %s" % (" ".join(vim_flags), ))
+        run("make")
+        sudo("make install")
+    with cd("~"):
+        run("rm -rf vimsrc*")
+
+    with cd("~"):
+        run("rm -f .vimrc")
+        run("rm -rf .vim")
+    vimrc_path = os.path.join(os.path.dirname(__file__), "vim", ".vimrc")
+    assert(os.path.isfile(vimrc_path))
+    vimfiles_path = os.path.join(os.path.dirname(__file__), "vim", ".vim")
+    assert(os.path.isdir(vimfiles_path))
+    put(vimrc_path, r"/home/ubuntu/.vimrc")
+    put_directory(vimfiles_path, r"/home/ubuntu/")
+    run("dos2unix /home/ubuntu/.vimrc")
+
+    sudo("yes yes | apt-get install ruby-dev")
+    with cd("~/.vim/ruby/command-t"):
+        run("ruby extconf.rb")
+        run("make clean")
+        run("make")
+
+def setup_timezone():
+    logger = logging.getLogger("%s.setup_timezone" % (APP_NAME, ))
     logger.debug("entry.")
     sudo("mv /etc/localtime /etc/localtime.backup")
     sudo("ln -sf /usr/share/zoneinfo/UTC /etc/localtime")
@@ -316,12 +374,12 @@ def setup_python():
                "redis",
                "python-memcached",
                "paramiko",
-               "supervisor"]
-    sudo("easy_install -U %s" % (" ".join(modules), ))        
                "supervisor",
-               "ipython"]
+               "pyvirtualdisplay",
+               "selenium",
+               "pil",
+               "pymongo",]
     sudo("pip install %s" % (" ".join(modules), ))
-    sudo("rm -rf /tmp/tmp*")    
 
 def setup_ntp():
     logger = logging.getLogger("%s.setup_ntp" % (APP_NAME, ))
@@ -522,27 +580,6 @@ def setup_bash_profile():
     append(filename = "~/.bash_profile",
            text = "export PATH=${PATH}:/usr/lib/postgresql/9.1/bin:/usr/local/bin")
 
-def setup_vim():
-    logger = logging.getLogger("%s.setup_vim" % (APP_NAME, ))
-    logger.debug("entry.")
-
-    vimrc_filepath = os.path.join(os.path.dirname(__file__), "vim", ".vimrc")
-    assert(os.path.isfile(vimrc_filepath))
-    put(vimrc_filepath, "~/.vimrc")
-
-    vim_path = os.path.join(os.path.dirname(__file__), "vim", "*")
-    #assert(os.path.isdir(vim_path))
-    run("rm -rf ~/vim")
-    run("mkdir -p ~/.vim")
-    put(vim_path, "~/.vim/")
-    run("rm -f ~/.vim/.vimrc")
-
-    sudo("yes yes | sudo apt-get install ruby-dev")
-    with cd("~/.vim/ruby/command-t"):
-        run("ruby extconf.rb")
-        run("make clean")
-        run("make")
-
 def setup_ssl():
     """ This isn't 100% unattended.  You'll need to type in 'password' at all
     the prompts.  However, the final SSL certificates will not be password
@@ -693,34 +730,29 @@ def main():
                          #setup_hostname,
                          #setup_timezone,
                          #install_bare_essentials,
-                         #install_erlang,                         
-                         install_vim,
                          #install_erlang,
-                         #install_mongodb,
+                         #install_vim,
                          #install_redis,
                          #init_redis,
-                         #install_memcached,                         
-                         #install_haproxy,                         
+                         #install_mongodb,
                          #install_memcached,
                          #install_haproxy,
                          #install_nginx,
                          #install_ack,
                          #install_pypy,
                          #setup_python,
-                         #setup_ntp,                         
                          #setup_ntp,
                          #install_postgresql,
                          #init_postgresql,
                          #checkout_code,
                          #harden,
                          #setup_bash_profile,
-                         #setup_ssl,                         
-                         #setup_haproxy,                         
                          #setup_ssl,
                          #setup_haproxy,
                          #start_haproxy,
                          #setup_nginx,
                          #start_nginx,
+                         install_browsers,
                         ]
     # ------------------------------------------------------------------
     logger.info("executing the following functions:\n%s" % (pprint.pformat(functions_to_call), ))
